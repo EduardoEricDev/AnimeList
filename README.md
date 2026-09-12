@@ -50,24 +50,38 @@ Funciona **100% no seu navegador (armazenamento local via LocalStorage)**, sem a
 
 ---
 
-## 🚀 Como Executar Localmente
+## 🚀 Como Executar
 
-Por utilizar **JavaScript ES Modules** (`import`/`export`), navegadores modernos exigem que a aplicação seja servida por um servidor web local simples:
+### 🖥️ Opção 1: Como Aplicativo de Desktop (Recomendado para Windows)
+Você pode rodar o AnimeList como um **aplicativo nativo independente** (sem abas, sem barra de navegação e com inicialização automática do servidor em segundo plano):
 
-### Opção 1: Usando `npx serve` (Recomendado com Node.js)
+1. **Pela Área de Trabalho**:
+   - Dê um duplo-clique no atalho **AnimeList** criado na sua Área de Trabalho (ou na pasta do projeto).
+2. **Pela pasta do projeto**:
+   - Dê um duplo-clique em `iniciar.bat` ou `launch-app.vbs`.
+   - Caso queira recriar o atalho da Área de Trabalho no futuro:
+     ```powershell
+     powershell -ExecutionPolicy Bypass -File scripts/create-desktop-shortcut.ps1
+     ```
+
+*O inicializador verifica se o servidor local já está ativo, inicia-o silenciosamente em segundo plano caso necessário e abre uma janela dedicada do app.*
+
+---
+
+### Opção 2: Pelo Terminal com `npx serve` (Node.js)
 No terminal da pasta do projeto, execute:
 ```bash
 npx serve .
 ```
-E abra o endereço indicado (ex: `http://localhost:3000`).
+E abra o endereço exibido (ex: `http://localhost:3000`).
 
-### Opção 2: Usando Python 3
+### Opção 3: Usando Python 3
 ```bash
 python -m http.server 8080
 ```
 E acesse `http://localhost:8080`.
 
-### Opção 3: Extensão Live Server (VS Code / Antigravity)
+### Opção 4: Extensão Live Server (VS Code / Antigravity)
 Basta clicar com o botão direito no arquivo `index.html` e selecionar **"Open with Live Server"**.
 
 ---

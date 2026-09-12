@@ -9,6 +9,7 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+*.lnk
 
 # IDEs e Editores
 .vscode/
