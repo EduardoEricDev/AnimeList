@@ -7,11 +7,32 @@ import { Api } from './api.js';
 
 export const Modal = {
   activeAnimeId: null,
+  activeTab: 'episodes',
+  currentEditingAnime: null,
   searchDebounceTimer: null,
   pendingAnimeData: null,
   onDataChangedCallback: null,
   episodeViewMode: 'grid', // 'grid' (Notion compact grid) or 'list' (detailed expandable)
   selectedGridEp: null,    // Ep number whose note is currently open in grid mode
+
+  escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  },
+
+  sanitizeUrl(url) {
+    if (!url || typeof url !== 'string') return '#';
+    const trimmed = url.trim();
+    if (/^(https?:\/\/|\/|\.\/)/i.test(trimmed)) {
+      return encodeURI(trimmed);
+    }
+    return '#';
+  },
 
   init(onDataChanged) {
     this.onDataChangedCallback = onDataChanged;
@@ -654,7 +675,7 @@ export const Modal = {
               class="ep-note-textarea" 
               placeholder="Escreva seus comentários, impressões ou minuto marcante deste episódio..."
               data-ep="${i}"
-            >${epData.note || ''}</textarea>
+            >${this.escapeHTML(epData.note || '')}</textarea>
           </div>
         </div>
       `;
@@ -716,17 +737,17 @@ export const Modal = {
 
     listContainer.innerHTML = links.map(link => `
       <div class="link-item">
-        <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="link-info" title="${link.url}">
+        <a href="${this.sanitizeUrl(link.url)}" target="_blank" rel="noopener noreferrer" class="link-info" title="${this.escapeHTML(link.url)}">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
           <div>
-            <div class="link-title">${link.title}</div>
-            <div class="link-url-text">${link.url}</div>
+            <div class="link-title">${this.escapeHTML(link.title)}</div>
+            <div class="link-url-text">${this.escapeHTML(link.url)}</div>
           </div>
         </a>
         <button 
           class="btn-icon-only" 
           data-action="delete-link" 
-          data-id="${link.id}" 
+          data-id="${this.escapeHTML(link.id)}" 
           title="Remover link"
           style="background: transparent; border: none; cursor: pointer;"
         >
@@ -739,7 +760,7 @@ export const Modal = {
     listContainer.querySelectorAll('[data-action="delete-link"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const linkId = e.currentTarget.getAttribute('data-id');
-        if (linkId) {
+        if (confirm('Deseja excluir este link?')) {
           const updated = Storage.removeLink(this.activeAnimeId, linkId);
           if (updated) {
             this.renderLinksTab(updated);
@@ -766,7 +787,12 @@ export const Modal = {
       return;
     }
 
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('file://')) {
+    // Validação rígida contra protocolos inseguros (javascript:, data:, vbscript:)
+    if (!/^https?:\/\//i.test(url)) {
+      if (/^[a-z0-9+.-]+:/i.test(url)) {
+        alert('Protocolo de link não permitido por segurança. Utilize endereços http:// ou https://');
+        return;
+      }
       url = 'https://' + url;
     }
 

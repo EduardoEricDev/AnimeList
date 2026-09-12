@@ -9,12 +9,21 @@ $wscriptExe = "C:\Windows\System32\wscript.exe"
 
 $WshShell = New-Object -ComObject WScript.Shell
 
-# Obter Area de Trabalho do Usuario
-$desktopDirs = @(
-    [System.Environment]::GetFolderPath('Desktop'),
-    "F:\OneDrive\Área de Trabalho",
-    "$env:USERPROFILE\Desktop"
-) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+# Obter Area de Trabalho do Usuario de forma dinamica e universal
+$desktopPath = [System.Environment]::GetFolderPath('Desktop')
+if (-not $desktopPath -or !(Test-Path $desktopPath)) {
+    # Consulta registro do Windows caso a pasta tenha sido movida (ex: OneDrive ou outro disco)
+    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+    $desktopPath = (Get-ItemProperty -Path $regPath -Name "Desktop" -ErrorAction SilentlyContinue).Desktop
+    if ($desktopPath) {
+        $desktopPath = [System.Environment]::ExpandEnvironmentVariables($desktopPath)
+    }
+}
+if (-not $desktopPath -or !(Test-Path $desktopPath)) {
+    $desktopPath = Join-Path $env:USERPROFILE "Desktop"
+}
+
+$desktopDirs = @($desktopPath) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
 
 $createdShortcuts = @()
 

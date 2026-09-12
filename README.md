@@ -1,6 +1,6 @@
 # ⛩️ Meus Animes • Catálogo & Tracker Pessoal (Estilo Notion)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Personal & Non-Commercial](https://img.shields.io/badge/License-Personal%20%26%20Non--Commercial-blue.svg)](LICENSE)
 [![Vanilla JS](https://img.shields.io/badge/Vanilla-JavaScript%20ES6+-F7DF1E?logo=javascript&logoColor=black)](js/app.js)
 [![CSS3](https://img.shields.io/badge/CSS3-Modern%20Design-1572B6?logo=css3&logoColor=white)](css/)
 [![Offline First](https://img.shields.io/badge/Storage-LocalStorage%20Offline-success)](js/storage.js)
@@ -95,8 +95,10 @@ Basta clicar com o botão direito no arquivo `index.html` e selecionar **"Open w
 
 ---
 
-## 📄 Licença
+## 📄 Licença de Uso
 
-Este projeto está licenciado sob os termos da licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto é de código aberto para **uso pessoal, estudo e fins não-comerciais**. Veja o arquivo [LICENSE](LICENSE) para os termos completos.
 
-Desenvolvido por [EduardoEricDev](https://github.com/EduardoEricDev).
+- Permitido o uso pessoal gratuito e estudo.
+- Proibida a comercialização, venda, hospedagem como serviço pago por terceiros (SaaS) ou apropriação sem autorização prévia por escrito.
+- Todos os direitos de desenvolvimento, marcas e futuras versões reservados a [EduardoEricDev](https://github.com/EduardoEricDev).
