@@ -454,11 +454,17 @@ class App {
 
     const openModal = (tab = 'login') => {
       this.switchAuthTab(tab);
-      if (modal) modal.style.display = 'flex';
+      if (modal) {
+        modal.classList.add('open');
+        document.body.classList.add('modal-open');
+      }
     };
 
     const closeModal = () => {
-      if (modal) modal.style.display = 'none';
+      if (modal) {
+        modal.classList.remove('open');
+        document.body.classList.remove('modal-open');
+      }
       if (feedback) {
         feedback.style.display = 'none';
         feedback.textContent = '';
@@ -663,7 +669,9 @@ class App {
           this.showAuthFeedback('Conta criada com sucesso! Se a confirmação de email estiver desativada no seu Supabase, você já pode entrar.', 'success');
           if (data?.session) {
             setTimeout(() => {
-              document.getElementById('authModal').style.display = 'none';
+              const modal = document.getElementById('authModal');
+              modal?.classList.remove('open');
+              document.body.classList.remove('modal-open');
             }, 1000);
           }
         }
@@ -674,7 +682,9 @@ class App {
         } else {
           this.showAuthFeedback('Login realizado com sucesso!', 'success');
           setTimeout(() => {
-            document.getElementById('authModal').style.display = 'none';
+            const modal = document.getElementById('authModal');
+            modal?.classList.remove('open');
+            document.body.classList.remove('modal-open');
           }, 800);
         }
       }
