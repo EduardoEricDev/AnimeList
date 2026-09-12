@@ -4,7 +4,7 @@
 
 $projectDir = Split-Path -Parent $PSScriptRoot
 $vbsPath = Join-Path $projectDir "launch-app.vbs"
-$icoPath = Join-Path $projectDir "assets\app.ico"
+$icoPath = Join-Path $projectDir "assets\anime_icon.ico"
 $wscriptExe = "C:\Windows\System32\wscript.exe"
 
 $WshShell = New-Object -ComObject WScript.Shell
