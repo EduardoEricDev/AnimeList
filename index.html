@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meus Animes • Catálogo & Tracker Pessoal</title>
+  <meta name="description" content="Catálogo pessoal de animes estilo Notion com busca automática na API, anotações de episódios, links customizados e backup local." />
+  
+  <!-- Modern Clean Typography (Inter & Plus Jakarta Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/modal.css" />
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="workspace-branding">
+        <span class="workspace-icon">⛩️</span>
+        <span class="workspace-title">Meus Animes</span>
+        <span class="workspace-badge">Notion Clean</span>
+      </div>
+
+      <div class="header-actions">
+        <!-- Hidden file input for JSON import -->
+        <input type="file" id="backupFileInput" accept=".json" style="display: none;" />
+
+        <button class="btn" id="btnImportBackup" title="Restaurar backup JSON do seu computador">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Importar Backup
+        </button>
+
+        <button class="btn" id="btnExportBackup" title="Baixar arquivo JSON com todos os seus dados">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Exportar Backup
+        </button>
+
+        <button class="btn btn-primary" id="btnOpenAddModal">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Novo Anime
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace Container -->
+  <main class="app-container">
+    <!-- Page Hero / Notion Banner Title -->
+    <section class="page-hero">
+      <div class="page-hero-title-group">
+        <h1 class="page-hero-title">Catálogo de Animes</h1>
+        <span class="page-hero-count" id="totalAnimeCount">0 animes</span>
+      </div>
+      <p class="page-hero-description">
+        Seu banco de dados pessoal e local para acompanhar temporadas, progresso de episódios, anotações de cenas e links úteis.
+      </p>
+    </section>
+
+    <!-- Controls Bar: Status Filter Tabs & Sub-controls -->
+    <section class="controls-bar">
+      <!-- Notion Pill Filter Tabs -->
+      <nav class="filter-tabs" aria-label="Filtro por status">
+        <button class="tab-btn active" data-filter="all">
+          <span>Todos</span>
+          <span class="tab-count" data-filter="all">0</span>
+        </button>
+        <button class="tab-btn" data-filter="watching">
+          <span>Assistindo</span>
+          <span class="tab-count" data-filter="watching">0</span>
+        </button>
+        <button class="tab-btn" data-filter="plan_to_watch">
+          <span>Planejo Ver</span>
+          <span class="tab-count" data-filter="plan_to_watch">0</span>
+        </button>
+        <button class="tab-btn" data-filter="completed">
+          <span>Completos</span>
+          <span class="tab-count" data-filter="completed">0</span>
+        </button>
+        <button class="tab-btn" data-filter="paused">
+          <span>Pausados</span>
+          <span class="tab-count" data-filter="paused">0</span>
+        </button>
+        <button class="tab-btn" data-filter="dropped">
+          <span>Dropados</span>
+          <span class="tab-count" data-filter="dropped">0</span>
+        </button>
+        <button class="tab-btn" data-filter="favorites">
+          <span>★ Favoritos</span>
+          <span class="tab-count" data-filter="favorites">0</span>
+        </button>
+        <!-- Aba: Lançamentos Recentes -->
+        <button class="tab-btn tab-highlight" data-filter="recent_releases" title="Explorar animes recentes e da temporada">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Lançamentos Recentes</span>
+          <span class="tab-badge-new">NOVO</span>
+        </button>
+      </nav>
+
+      <!-- Sub-controls: Search, Sorter, View Switcher -->
+      <div class="sub-controls">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="filterSearchInput" class="search-input" placeholder="Filtrar por nome, japonês ou gênero..." />
+        </div>
+
+        <div class="sub-controls-right">
+          <!-- Sort dropdown -->
+          <select id="sortSelect" class="select-input" aria-label="Ordenar animes">
+            <option value="updated">Mais Recentes</option>
+            <option value="score">Maior Nota</option>
+            <option value="title">Ordem Alfabética (A-Z)</option>
+            <option value="episodes">Mais Episódios Vistos</option>
+          </select>
+
+          <!-- View Mode Switcher -->
+          <div class="view-switcher" role="group" aria-label="Alternar visualização">
+            <button class="view-btn active" id="btnViewGallery" title="Visualização em Galeria">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              Galeria
+            </button>
+            <button class="view-btn" id="btnViewTable" title="Visualização em Tabela (Database)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              Tabela
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Dynamic View Container -->
+    <div id="animesViewContainer"></div>
+  </main>
+
+  <!-- ==========================================================================
+       MODAL: Adicionar Novo Anime (Busca na API ou Manual)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modalAddAnime" role="dialog" aria-modal="true" aria-labelledby="modalAddTitle">
+    <div class="modal-container modal-search">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalAddTitle">Adicionar Anime</h2>
+        <button class="modal-close-btn" data-action="close-modal" aria-label="Fechar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- API Auto Search Box -->
+        <div class="form-group">
+          <label class="form-label" for="searchApiInput">Pesquisar na API (Preenchimento Automático)</label>
+          <div class="search-api-input-wrap">
+            <svg class="search-api-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input 
+              type="text" 
+              id="searchApiInput" 
+              class="search-api-input" 
+              placeholder="Digite o nome (ex: Frieren, Bleach, Jujutsu...)" 
+              autocomplete="off"
+            />
+            <div class="search-spinner" id="searchSpinner"></div>
+          </div>
+          <!-- Autocomplete results dropdown -->
+          <div id="apiSuggestionsList" class="api-suggestions-list" style="display: none;"></div>
+        </div>
+
+        <form id="formAddAnime">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label class="form-label" for="inputAnimeTitle">Título Principal *</label>
+              <input type="text" id="inputAnimeTitle" class="form-input" required placeholder="Nome do anime..." />
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label" for="inputAnimeOriginalTitle">Título Original / Japonês</label>
+              <input type="text" id="inputAnimeOriginalTitle" class="form-input" placeholder="Ex: 葬送のフリーレン" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAnimeSeason">Temporada</label>
+              <input type="text" id="inputAnimeSeason" class="form-input" placeholder="Ex: Outono, Primavera..." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAnimeYear">Ano de Lançamento</label>
+              <input type="number" id="inputAnimeYear" class="form-input" placeholder="Ex: 2024" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAnimeEpisodes">Total de Episódios</label>
+              <input type="number" id="inputAnimeEpisodes" class="form-input" min="0" placeholder="Ex: 12, 24 (0 para indefinido)" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAnimeStatus">Status Inicial</label>
+              <select id="inputAnimeStatus" class="form-select">
+                <option value="plan_to_watch">Planejo Ver</option>
+                <option value="watching">Assistindo</option>
+                <option value="completed">Completo</option>
+                <option value="paused">Pausado</option>
+                <option value="dropped">Dropado</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAnimeScore">Sua Nota (0 a 10)</label>
+              <select id="inputAnimeScore" class="form-select">
+                <option value="0">Sem nota ainda</option>
+                <option value="10">10 ★ Obra-prima</option>
+                <option value="9">9 ★ Excelente</option>
+                <option value="8">8 ★ Muito bom</option>
+                <option value="7">7 ★ Bom</option>
+                <option value="6">6 ★ Regular</option>
+                <option value="5">5 ★ Mediano</option>
+                <option value="4">4 ★ Ruim</option>
+                <option value="3">3 ★ Muito ruim</option>
+                <option value="2">2 ★ Terrível</option>
+                <option value="1">1 ★ Desastroso</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAnimeCover">URL da Imagem de Capa</label>
+              <input type="url" id="inputAnimeCover" class="form-input" placeholder="https://..." />
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label" for="inputAnimeGenres">Gêneros (separados por vírgula)</label>
+              <input type="text" id="inputAnimeGenres" class="form-input" placeholder="Ação, Fantasia, Drama..." />
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label" for="inputAnimeSynopsis">Sinopse</label>
+              <textarea id="inputAnimeSynopsis" class="form-textarea" placeholder="Resumo do enredo..."></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer" style="padding-left: 0; padding-right: 0; margin-top: 1rem;">
+            <button type="button" class="btn" data-action="close-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar no Catálogo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: Detalhes do Anime (Notion Page Drawer)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modalAnimeDetail" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="modal-container modal-detail">
+      <!-- Notion Banner Area -->
+      <div class="detail-banner-area">
+        <img id="detailBannerImg" class="detail-banner-img" src="" alt="Banner do anime" />
+        <div class="detail-banner-gradient"></div>
+        <button class="modal-close-btn" data-action="close-modal" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; background: rgba(0,0,0,0.6);" aria-label="Fechar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <!-- Header with Floating Cover & Title -->
+      <div class="detail-top-content">
+        <div class="detail-poster-wrap">
+          <img id="detailPosterImg" class="detail-poster-img" src="" alt="Capa" />
+        </div>
+        <div class="detail-header-info">
+          <h2 id="detailTitle" class="detail-title">Nome do Anime</h2>
+          <p id="detailSubtitle" class="detail-subtitle">Título original e detalhes</p>
+        </div>
+      </div>
+
+      <!-- Notion Properties Section -->
+      <div class="notion-properties-pane">
+        <div class="notion-prop-item">
+          <span class="prop-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Status
+          </span>
+          <div class="prop-value">
+            <select id="detailStatusSelect" class="form-select" style="padding: 0.3rem 0.5rem; font-size: 0.82rem;">
+              <option value="watching">Assistindo</option>
+              <option value="plan_to_watch">Planejo Ver</option>
+              <option value="completed">Completo</option>
+              <option value="paused">Pausado</option>
+              <option value="dropped">Dropado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="notion-prop-item">
+          <span class="prop-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            Sua Nota
+          </span>
+          <div class="prop-value">
+            <select id="detailScoreSelect" class="form-select" style="padding: 0.3rem 0.5rem; font-size: 0.82rem;">
+              <option value="0">Sem nota</option>
+              <option value="10">10 ★ Obra-prima</option>
+              <option value="9">9 ★ Excelente</option>
+              <option value="8">8 ★ Muito bom</option>
+              <option value="7">7 ★ Bom</option>
+              <option value="6">6 ★ Regular</option>
+              <option value="5">5 ★ Mediano</option>
+              <option value="4">4 ★ Ruim</option>
+              <option value="3">3 ★ Muito ruim</option>
+              <option value="2">2 ★ Terrível</option>
+              <option value="1">1 ★ Desastroso</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="notion-prop-item">
+          <span class="prop-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            Temporada
+          </span>
+          <div class="prop-value" id="propDetailSeason">—</div>
+        </div>
+
+        <div class="notion-prop-item">
+          <span class="prop-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            Estúdio
+          </span>
+          <div class="prop-value" id="propDetailStudio">—</div>
+        </div>
+
+        <div class="notion-prop-item" style="grid-column: 1 / -1;">
+          <span class="prop-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+            Gêneros
+          </span>
+          <div class="prop-value" id="propDetailGenres">—</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Episodes, Links, Notes) -->
+      <div class="detail-tabs-bar">
+        <button class="detail-tab-btn active" data-tab="episodes">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
+          Episódios & Anotações
+        </button>
+        <button class="detail-tab-btn" data-tab="links">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          Links Personalizados
+        </button>
+        <button class="detail-tab-btn" data-tab="notes">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Anotações & Sinopse
+        </button>
+      </div>
+
+      <!-- Tab Panel: Episodes & Notes -->
+      <div class="detail-tab-panel active" id="tabPanel_episodes">
+        <div class="episodes-summary-bar">
+          <div class="episodes-summary-top">
+            <div class="episodes-progress-meta">
+              <span class="episodes-progress-title">Progresso</span>
+              <span id="episodesWatchedCounter" style="color: var(--text-secondary); font-size: 0.85rem;">0 de 0 assistidos (0%)</span>
+            </div>
+
+            <!-- View Switcher (Grade vs Lista) -->
+            <div class="episodes-view-mode-toggle" role="group" aria-label="Visualização dos episódios">
+              <button class="ep-view-btn active" id="btnEpViewGrid" title="Visualização em Grade rápida de botões">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Grade
+              </button>
+              <button class="ep-view-btn" id="btnEpViewList" title="Visualização em Lista detalhada com anotações">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                Lista
+              </button>
+            </div>
+
+            <!-- Batch Actions Bar -->
+            <div class="episodes-actions">
+              <button class="btn btn-icon-only" id="btnEpDecrement" title="Desmarcar último episódio (-1)" style="min-width: 32px;">-1</button>
+              <button class="btn" id="btnEpIncrement" style="font-weight: 700; color: #5ecba1;" title="Marcar próximo episódio (+1)">+1 Ep</button>
+              <button class="btn" id="btnMarkAllEpisodes" title="Marcar todos como assistidos">Marcar Todos</button>
+              <button class="btn" id="btnUnmarkAllEpisodes" title="Desmarcar todos">Limpar</button>
+              <button class="btn" id="btnAddExtraEpisode" title="Adicionar +1 episódio à contagem total">+ Extra</button>
+            </div>
+          </div>
+
+          <!-- Visual Progress Track -->
+          <div class="episodes-progress-track">
+            <div class="episodes-progress-fill" id="episodesProgressFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Dynamic Container for Grid or List view -->
+        <div id="episodesContentWrapper"></div>
+      </div>
+
+      <!-- Tab Panel: Links -->
+      <div class="detail-tab-panel" id="tabPanel_links">
+        <div class="links-list" id="customLinksList"></div>
+
+        <!-- Add Link Form -->
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+          <span class="form-label" style="display: block; margin-bottom: 0.5rem;">Adicionar Novo Link</span>
+          <div class="add-link-form">
+            <input type="text" id="inputNewLinkTitle" class="form-input" placeholder="Nome (Ex: Crunchyroll, Fansub, Pasta PC)" style="flex: 1;" />
+            <input type="text" id="inputNewLinkUrl" class="form-input" placeholder="URL ou Caminho (Ex: https://...)" style="flex: 2;" />
+            <button type="button" class="btn btn-primary" id="btnAddCustomLink">Adicionar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel: Notes & Synopsis -->
+      <div class="detail-tab-panel" id="tabPanel_notes">
+        <div class="form-group">
+          <label class="form-label" for="detailGeneralNotes">Minhas Impressões / Anotações Gerais</label>
+          <textarea 
+            id="detailGeneralNotes" 
+            class="form-textarea" 
+            style="min-height: 140px;" 
+            placeholder="Escreva livremente sobre este anime (impressões, teorias, resenha pessoal)... As anotações são salvas automaticamente!"
+          ></textarea>
+        </div>
+
+        <div class="form-group" style="margin-top: 0.75rem;">
+          <label class="form-label">Sinopse Oficial</label>
+          <div id="detailSynopsisText" style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; background: var(--bg-surface); padding: 1rem; border-radius: var(--border-radius-md); border: 1px solid var(--border-subtle);"></div>
+        </div>
+      </div>
+
+      <!-- Footer with Delete Action -->
+      <div class="modal-footer">
+        <button class="btn" id="btnDeleteAnime" style="color: #f07b7b; border-color: rgba(235, 87, 87, 0.3); margin-right: auto;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          Excluir Anime
+        </button>
+        <button class="btn" data-action="close-modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Mount Point -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Main JavaScript Application Module -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

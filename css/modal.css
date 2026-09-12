@@ -1,0 +1,850 @@
+/* ==========================================================================
+   Modal & Detail Drawer Stylesheet - Notion Page Experience
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-modal-backdrop);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-container {
+  background: var(--bg-modal);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-modal);
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-backdrop.open .modal-container {
+  transform: translateY(0) scale(1);
+}
+
+.modal-container.modal-search {
+  max-width: 680px;
+}
+
+.modal-container.modal-detail {
+  max-width: 920px;
+  overflow-y: auto;
+}
+
+/* Modal Header */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ==========================================================================
+   Add / Search Anime Modal Specifics
+   ========================================================================== */
+
+.search-api-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.search-api-input {
+  width: 100%;
+  padding: 0.85rem 1rem 0.85rem 2.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--border-radius-md);
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: var(--font-sans);
+  transition: all var(--transition-fast);
+}
+
+.search-api-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--bg-input-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.search-api-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-spinner {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Autocomplete suggestions list */
+.api-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  background: var(--bg-surface);
+  padding: 0.4rem;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.suggestion-item:hover {
+  background: var(--bg-surface-hover);
+}
+
+.suggestion-thumb {
+  width: 42px;
+  height: 60px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #111;
+  flex-shrink: 0;
+}
+
+.suggestion-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.suggestion-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-meta {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Form Groups */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  transition: all var(--transition-fast);
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  background: var(--bg-input-focus);
+  border-color: var(--accent-primary);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Modal Footer */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* ==========================================================================
+   Detail Modal (Notion Page Layout)
+   ========================================================================== */
+
+.detail-banner-area {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: linear-gradient(135deg, #1f2a44 0%, #161821 100%);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.detail-banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+  filter: blur(2px);
+}
+
+.detail-banner-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, var(--bg-modal) 100%);
+}
+
+.detail-top-content {
+  position: relative;
+  padding: 0 1.75rem;
+  margin-top: -60px;
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+}
+
+.detail-poster-wrap {
+  position: relative;
+  width: 130px;
+  aspect-ratio: 16 / 23;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-modal);
+  border: 2px solid var(--border-medium);
+  background: #111;
+  flex-shrink: 0;
+}
+
+.detail-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.detail-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.detail-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+/* Notion Properties Section */
+.notion-properties-pane {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  padding: 1rem 1.25rem;
+  margin: 1rem 1.75rem 0;
+}
+
+.notion-prop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.prop-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.prop-label svg {
+  width: 13px;
+  height: 13px;
+}
+
+.prop-value {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Detail Navigation Tabs (Episodes vs Links vs Notes) */
+.detail-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.75rem;
+  margin-top: 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.65rem 0.95rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all var(--transition-fast);
+}
+
+.detail-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.detail-tab-btn.active {
+  color: #ffffff;
+  border-bottom-color: var(--accent-primary);
+}
+
+/* Tabs Content Containers */
+.detail-tab-panel {
+  display: none;
+  padding: 1.25rem 1.75rem 1.75rem;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.detail-tab-panel.active {
+  display: flex;
+}
+
+/* ==========================================================================
+   Episodes & Notes Component (Dual View: Notion Grid & Detailed List)
+   ========================================================================== */
+
+.episodes-summary-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  padding: 0.95rem 1.25rem;
+  flex-shrink: 0;
+}
+
+.episodes-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.episodes-progress-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.episodes-progress-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.episodes-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-pill);
+  overflow: hidden;
+}
+
+.episodes-progress-fill {
+  height: 100%;
+  background: #4dab9a;
+  border-radius: var(--border-radius-pill);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.episodes-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Episodes View Mode Toggle (Grade vs Lista) */
+.episodes-view-mode-toggle {
+  display: inline-flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  padding: 2px;
+}
+
+.ep-view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 0.32rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all var(--transition-fast);
+}
+
+.ep-view-btn:hover {
+  color: var(--text-primary);
+}
+
+.ep-view-btn.active {
+  background: var(--bg-card);
+  color: #ffffff;
+  border: 1px solid var(--border-medium);
+}
+
+/* ==========================================================================
+   Episode View 1: Notion Grid Mode
+   ========================================================================== */
+
+.episodes-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.episodes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 0.55rem;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 0.4rem 0.2rem;
+}
+
+.ep-grid-btn {
+  position: relative;
+  height: 52px;
+  border-radius: var(--border-radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.ep-grid-btn:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-medium);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.ep-grid-btn:active {
+  transform: scale(0.96);
+}
+
+.ep-grid-btn.watched {
+  background: rgba(46, 182, 125, 0.16);
+  border-color: rgba(46, 182, 125, 0.4);
+  color: #5ecba1;
+}
+
+.ep-grid-btn.watched::before {
+  content: '✓';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #4dab9a;
+}
+
+.ep-grid-btn.has-note::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #529cca;
+  box-shadow: 0 0 6px rgba(82, 156, 202, 0.8);
+}
+
+.ep-grid-btn.active-note-target {
+  border-color: #529cca;
+  box-shadow: 0 0 0 2px rgba(82, 156, 202, 0.35);
+}
+
+/* Selected Episode Note Editor in Grid View */
+.ep-grid-note-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--border-radius-md);
+  padding: 0.9rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  animation: fadeIn 0.18s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ep-grid-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ep-grid-note-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ep-grid-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Episode View 2: Detailed List Mode (With Expandable Notes)
+   ========================================================================== */
+
+.episodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+  min-height: 140px;
+  flex-shrink: 0;
+}
+
+.episode-item {
+  flex-shrink: 0;
+  min-height: 48px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.episode-item.watched {
+  border-color: rgba(46, 182, 125, 0.3);
+  background: rgba(46, 182, 125, 0.04);
+}
+
+.episode-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.95rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.episode-item-header:hover {
+  background: var(--bg-surface-hover);
+}
+
+.episode-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ep-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-medium);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+  transition: all var(--transition-fast);
+}
+
+.ep-checkbox.checked {
+  background: #4dab9a;
+  border-color: #4dab9a;
+  color: #ffffff;
+}
+
+.ep-number {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.ep-note-indicator {
+  font-size: 0.75rem;
+  color: var(--text-accent);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(82, 156, 202, 0.12);
+  padding: 2px 7px;
+  border-radius: var(--border-radius-pill);
+}
+
+.episode-note-content {
+  padding: 0.75rem 0.95rem 0.95rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  display: none;
+}
+
+.episode-note-content.open {
+  display: block;
+}
+
+.ep-note-textarea {
+  width: 100%;
+  min-height: 65px;
+  padding: 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-family: var(--font-sans);
+  resize: vertical;
+}
+
+.ep-note-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+/* ==========================================================================
+   Links Section Component
+   ========================================================================== */
+
+.links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-fast);
+}
+
+.link-item:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+}
+
+.link-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.link-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.link-url-text {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.add-link-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-container {
+    max-height: 95vh;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-top-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: -40px;
+  }
+  .detail-header-info {
+    align-items: center;
+  }
+  .notion-properties-pane {
+    grid-template-columns: 1fr;
+    margin: 1rem 1rem 0;
+  }
+  .detail-tabs-bar {
+    padding: 0 1rem;
+  }
+  .detail-tab-panel {
+    padding: 1rem;
+  }
+  .add-link-form {
+    flex-direction: column;
+  }
+}
