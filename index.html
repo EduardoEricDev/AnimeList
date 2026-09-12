@@ -47,9 +47,27 @@
         </button>
 
         <button class="btn btn-primary" id="btnOpenAddModal">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="12" y2="12"></line></svg>
           Novo Anime
         </button>
+
+        <!-- Sincronização & Conta Supabase -->
+        <div class="auth-header-group">
+          <button class="btn-sync-status" id="btnAuthStatus" title="Status da Nuvem">
+            <span class="sync-dot status-offline" id="syncStatusDot"></span>
+            <span id="syncStatusText">Modo Local</span>
+          </button>
+
+          <div class="user-pill" id="userPill" style="display: none;">
+            <span class="user-email-text" id="userEmailText"></span>
+            <button class="btn-user-logout" id="btnLogout" title="Encerrar Sessão">Sair</button>
+          </div>
+
+          <button class="btn btn-secondary" id="btnOpenAuthModal" title="Entrar ou criar conta na nuvem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span id="authBtnLabel">Nuvem / Conta</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -440,6 +458,88 @@
           Excluir Anime
         </button>
         <button class="btn" data-action="close-modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Autenticação e Configuração Supabase -->
+  <div class="modal-backdrop" id="authModal" style="display: none;">
+    <div class="modal-dialog auth-modal-dialog">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span style="font-size: 1.25rem;">☁️</span>
+          <div>
+            <h2 id="authModalHeading" style="font-size: 1.15rem; font-weight: 700; margin: 0;">Sincronização & Contas na Nuvem</h2>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Acesse sua lista de animes em qualquer lugar via Supabase</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" data-action="close-modal" aria-label="Fechar">&times;</button>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs-bar">
+        <button class="auth-tab active" data-tab="login" id="tabAuthLogin">Entrar</button>
+        <button class="auth-tab" data-tab="signup" id="tabAuthSignup">Criar Conta</button>
+        <button class="auth-tab" data-tab="config" id="tabAuthConfig">⚙️ Configurar Supabase</button>
+      </div>
+
+      <!-- Feedback Banner -->
+      <div class="auth-feedback" id="authFeedback" style="display: none;"></div>
+
+      <!-- Tab 1 & 2 Form: Login / Signup -->
+      <form id="authForm" class="auth-tab-panel active" data-panel="login">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="authEmail">Email</label>
+          <input type="email" id="authEmail" class="form-input" placeholder="seuemail@exemplo.com" required autocomplete="email" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="authPassword">Senha</label>
+          <input type="password" id="authPassword" class="form-input" placeholder="Sua senha (mínimo 6 caracteres)" required minlength="6" autocomplete="current-password" />
+        </div>
+
+        <div class="form-group" id="groupConfirmPassword" style="margin-bottom: 1rem; display: none;">
+          <label class="form-label" for="authConfirmPassword">Confirmar Senha</label>
+          <input type="password" id="authConfirmPassword" class="form-input" placeholder="Repita a senha" minlength="6" autocomplete="new-password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnAuthSubmit" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; justify-content: center; margin-top: 0.5rem;">
+          <span id="authSubmitText">Entrar na Conta</span>
+        </button>
+      </form>
+
+      <!-- Tab 3 Panel: Supabase Project Credentials Configuration -->
+      <div id="authConfigPanel" class="auth-tab-panel" data-panel="config" style="display: none;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;">
+          Conecte o AnimeList ao seu projeto no <strong>Supabase</strong>. As chaves são salvas no seu navegador para sincronizar seu banco PostgreSQL.
+        </p>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="configSupabaseUrl">URL do Projeto (Project URL)</label>
+          <input type="url" id="configSupabaseUrl" class="form-input" placeholder="https://seuprojeto.supabase.co" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="configSupabaseKey">Chave Pública (anon public key)</label>
+          <input type="password" id="configSupabaseKey" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-primary" id="btnSaveConfig" style="flex: 1; justify-content: center;">
+            Salvar Credenciais
+          </button>
+          <button type="button" class="btn" id="btnClearConfig" style="color: var(--text-muted);">
+            Limpar
+          </button>
+        </div>
+
+        <div style="margin-top: 1.25rem; padding: 0.85rem; background: var(--bg-surface); border-radius: var(--border-radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
+          💡 <strong>Guia Rápido:</strong> Crie um projeto em <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">supabase.com</a>, rode o script <code>supabase/schema.sql</code> no SQL Editor e copie as chaves em <em>Project Settings → API</em>.
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 1rem; padding-top: 0.75rem;">
+        <button class="btn" data-action="close-modal" style="margin-left: auto;">Fechar</button>
       </div>
     </div>
   </div>

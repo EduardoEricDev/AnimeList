@@ -54,11 +54,11 @@ const server = http.createServer((req, res) => {
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' https://api.jikan.moe https://kitsu.io; " +
+    "connect-src 'self' https://api.jikan.moe https://kitsu.io https://*.supabase.co; " +
     "object-src 'none'; " +
     "base-uri 'self'; " +
     "frame-ancestors 'none';"

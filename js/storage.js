@@ -1,6 +1,9 @@
 /* ==========================================================================
    Storage Module - LocalStorage Management & Backup JSON (Export/Import)
+   Suporte Híbrido: Offline/Local First + Sincronização Automática com Supabase
    ========================================================================== */
+
+import { SupabaseService } from './supabase.js';
 
 const STORAGE_KEY = 'animetracker_data_v1';
 
@@ -124,6 +127,14 @@ export const Storage = {
     }
 
     this.saveAll(list);
+
+    // Sincronização em nuvem assíncrona se logado
+    if (SupabaseService.isAuthenticated()) {
+      SupabaseService.upsertAnime(record).catch(err => {
+        console.warn('[Storage] Erro ao sincronizar anime com Supabase:', err);
+      });
+    }
+
     return record;
   },
 
@@ -133,6 +144,13 @@ export const Storage = {
   delete(id) {
     const list = this.getAll().filter(item => item.id !== id);
     this.saveAll(list);
+
+    // Sincronização em nuvem assíncrona se logado
+    if (SupabaseService.isAuthenticated()) {
+      SupabaseService.deleteAnime(id).catch(err => {
+        console.warn('[Storage] Erro ao excluir anime no Supabase:', err);
+      });
+    }
   },
 
   /**
@@ -347,10 +365,59 @@ export const Storage = {
       }
 
       this.saveAll(parsed);
+
+      // Se logado no Supabase, sobe os animes importados também para a nuvem
+      if (SupabaseService.isAuthenticated() && parsed.length > 0) {
+        SupabaseService.syncLocalToCloud(parsed).catch(err => {
+          console.warn('[Storage] Erro ao sincronizar backup importado com o Supabase:', err);
+        });
+      }
+
       return { success: true, count: parsed.length, message: `${parsed.length} animes importados com sucesso!` };
     } catch (err) {
       console.error(err);
       return { success: false, count: 0, message: 'Arquivo JSON inválido ou corrompido.' };
     }
+  },
+
+  /**
+   * Sincroniza dados com o Supabase (baixa da nuvem ou sobe dados locais iniciais)
+   */
+  async syncWithCloud() {
+    if (!SupabaseService.isAuthenticated()) {
+      return { status: 'offline', count: 0 };
+    }
+
+    try {
+      const { data: cloudAnimes, error } = await SupabaseService.fetchUserAnimes();
+      if (error) throw error;
+
+      if (cloudAnimes && cloudAnimes.length > 0) {
+        // Usuário já possui animes na nuvem: atualiza cache local com a versão da nuvem
+        this.saveAll(cloudAnimes);
+        return { status: 'pulled', count: cloudAnimes.length };
+      } else {
+        // Nuvem vazia: se houver animes locais reais no navegador, envia para a nuvem
+        const local = this.getAll();
+        const realAnimes = local.filter(a => a && !String(a.id).startsWith('sample-'));
+        if (realAnimes.length > 0) {
+          await SupabaseService.syncLocalToCloud(realAnimes);
+          return { status: 'pushed', count: realAnimes.length };
+        }
+      }
+
+      return { status: 'synced', count: 0 };
+    } catch (err) {
+      console.error('[Storage] Erro durante sincronização com a nuvem:', err);
+      return { status: 'error', error: err };
+    }
+  },
+
+  /**
+   * Limpa cache local (ex: ao deslogar)
+   */
+  resetToSampleData() {
+    this.saveAll(SAMPLE_ANIMES);
   }
 };
+

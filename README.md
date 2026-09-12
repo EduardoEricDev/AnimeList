@@ -48,6 +48,12 @@ Funciona **100% no seu navegador (armazenamento local via LocalStorage)**, sem a
 - **Exportar Backup**: Baixe um arquivo `.json` completo contendo sua lista, links e comentários de episódios.
 - **Importar Backup**: Restaure ou migre sua lista inteira em qualquer navegador ou computador a qualquer momento.
 
+### 8. ☁️ Modo Híbrido: Contas Simples & Sincronização com Supabase
+- **Modo Local (Visitante)**: Funciona 100% offline sem login, mantendo todos os dados no navegador.
+- **Contas na Nuvem**: Crie uma conta com email e senha simples para sincronizar sua lista entre dispositivos (PC, celular, notebook).
+- **Segurança por Linha (RLS)**: Cada usuário possui acesso restrito única e exclusivamente à sua própria coleção de animes.
+- **Configuração Fácil**: Conecte ao seu projeto Supabase colando a URL e a Chave Pública diretamente pelo modal de configuração do app.
+
 ---
 
 ## 🚀 Como Executar
@@ -83,6 +89,22 @@ E acesse `http://localhost:8080`.
 
 ### Opção 4: Extensão Live Server (VS Code / Antigravity)
 Basta clicar com o botão direito no arquivo `index.html` e selecionar **"Open with Live Server"**.
+
+---
+
+## ☁️ Como Conectar ao Supabase (Passo a Passo em 2 minutos)
+
+Se você desejar ativar a sincronização na nuvem e permitir que você e outras pessoas criem contas:
+
+1. Acesse **[supabase.com](https://supabase.com)** e crie uma conta gratuita.
+2. Crie um novo projeto (ex: `animelist`).
+3. No menu lateral do projeto, clique em **SQL Editor**, cole todo o conteúdo do arquivo [`supabase/schema.sql`](supabase/schema.sql) e clique em **Run**.
+4. No menu lateral, vá em **Project Settings → API** e copie:
+   - **Project URL** (ex: `https://xyzcompany.supabase.co`)
+   - **anon public key** (sua chave pública que começa com `eyJ...`)
+5. Abra o AnimeList no seu navegador ou desktop, clique no botão **Nuvem / Conta** no topo direito, selecione a aba **⚙️ Configurar Supabase** e salve suas chaves!
+
+*Pronto! Agora você pode criar contas com email e senha na aba "Criar Conta" e todos os seus animes serão sincronizados em tempo real no PostgreSQL.*
 
 ---
 

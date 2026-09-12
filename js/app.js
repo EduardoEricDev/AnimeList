@@ -6,6 +6,8 @@ import { Storage } from './storage.js';
 import { Render } from './render.js';
 import { Modal } from './modal.js';
 import { Api } from './api.js';
+import { Config } from './config.js';
+import { SupabaseService } from './supabase.js';
 
 class App {
   constructor() {
@@ -18,9 +20,10 @@ class App {
     this.recentSeason = 'all';        // 'all' | 'winter' | 'spring' | 'summer' | 'fall'
     this.recentAnimesCache = {};
     this.isLoadingRecent = false;
+    this.currentAuthTab = 'login';
   }
 
-  init() {
+  async init() {
     // Initialize Modal interactions
     Modal.init((toastMsg) => {
       this.refreshUI(toastMsg);
@@ -32,9 +35,13 @@ class App {
     this.bindSearchAndSort();
     this.bindListInteractions();
     this.bindBackupActions();
+    this.bindAuthModal();
 
     // Initial render
     this.refreshUI();
+
+    // Inicializar conexão com Supabase e verificar sessão
+    await this.initSupabaseAndAuth();
   }
 
   bindHeaderActions() {
@@ -373,8 +380,309 @@ class App {
 
     Render.updateTabCounters(allAnimes);
 
-    if (toastMessage) {
-      this.showToast(toastMessage);
+  async initSupabaseAndAuth() {
+    const isConfigured = await SupabaseService.init();
+
+    // Listener de mudança de autenticação
+    SupabaseService.onAuthStateChange(async (event, session, user) => {
+      this.updateAuthUI(user);
+
+      if (event === 'SIGNED_IN' && user) {
+        this.setSyncStatus('syncing', 'Sincronizando...');
+        const syncResult = await Storage.syncWithCloud();
+        this.setSyncStatus('online', 'Nuvem Ativa');
+
+        let msg = 'Conectado à sua conta!';
+        if (syncResult?.status === 'pulled') {
+          msg = `Sincronizado! ${syncResult.count} animes carregados da nuvem.`;
+        } else if (syncResult?.status === 'pushed') {
+          msg = `Sincronizado! ${syncResult.count} animes locais enviados para a nuvem.`;
+        }
+        this.refreshUI(msg);
+      } else if (event === 'SIGNED_OUT') {
+        this.setSyncStatus('offline', 'Modo Local');
+        this.refreshUI('Sessão encerrada. Operando em modo local.');
+      }
+    });
+
+    const user = SupabaseService.getCurrentUser();
+    this.updateAuthUI(user);
+
+    if (user) {
+      this.setSyncStatus('syncing', 'Sincronizando...');
+      const syncResult = await Storage.syncWithCloud();
+      this.setSyncStatus('online', 'Nuvem Ativa');
+      this.refreshUI();
+    } else {
+      this.setSyncStatus('offline', 'Modo Local');
+    }
+  }
+
+  setSyncStatus(status, label) {
+    const dot = document.getElementById('syncStatusDot');
+    const text = document.getElementById('syncStatusText');
+    if (!dot || !text) return;
+
+    dot.className = `sync-dot status-${status}`;
+    text.textContent = label;
+  }
+
+  updateAuthUI(user) {
+    const userPill = document.getElementById('userPill');
+    const userEmailText = document.getElementById('userEmailText');
+    const btnOpenAuth = document.getElementById('btnOpenAuthModal');
+
+    if (user && user.email) {
+      if (userPill) userPill.style.display = 'inline-flex';
+      if (userEmailText) userEmailText.textContent = user.email;
+      if (btnOpenAuth) btnOpenAuth.style.display = 'none';
+      this.setSyncStatus('online', 'Nuvem Ativa');
+    } else {
+      if (userPill) userPill.style.display = 'none';
+      if (btnOpenAuth) btnOpenAuth.style.display = 'inline-flex';
+      this.setSyncStatus('offline', 'Modo Local');
+    }
+  }
+
+  bindAuthModal() {
+    const modal = document.getElementById('authModal');
+    const btnOpen = document.getElementById('btnOpenAuthModal');
+    const btnStatus = document.getElementById('btnAuthStatus');
+    const btnLogout = document.getElementById('btnLogout');
+    const form = document.getElementById('authForm');
+    const feedback = document.getElementById('authFeedback');
+
+    const openModal = (tab = 'login') => {
+      this.switchAuthTab(tab);
+      if (modal) modal.style.display = 'flex';
+    };
+
+    const closeModal = () => {
+      if (modal) modal.style.display = 'none';
+      if (feedback) {
+        feedback.style.display = 'none';
+        feedback.textContent = '';
+      }
+    };
+
+    if (btnOpen) btnOpen.addEventListener('click', () => openModal('login'));
+
+    if (btnStatus) {
+      btnStatus.addEventListener('click', async () => {
+        if (SupabaseService.isAuthenticated()) {
+          this.setSyncStatus('syncing', 'Sincronizando...');
+          await Storage.syncWithCloud();
+          this.setSyncStatus('online', 'Nuvem Ativa');
+          this.refreshUI('Dados sincronizados com a nuvem!');
+        } else {
+          openModal('login');
+        }
+      });
+    }
+
+    if (btnLogout) {
+      btnLogout.addEventListener('click', async () => {
+        if (confirm('Deseja realmente encerrar a sessão na nuvem?')) {
+          await SupabaseService.signOut();
+        }
+      });
+    }
+
+    // Modal tabs
+    const tabs = modal?.querySelectorAll('.auth-tab');
+    tabs?.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const tab = e.currentTarget.getAttribute('data-tab');
+        this.switchAuthTab(tab);
+      });
+    });
+
+    // Close buttons
+    modal?.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
+      btn.addEventListener('click', closeModal);
+    });
+
+    // Fechar ao clicar no fundo
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Submissão do formulário de Login / Signup
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.handleAuthSubmit();
+      });
+    }
+
+    // Configuração do Supabase
+    const btnSaveConfig = document.getElementById('btnSaveConfig');
+    const btnClearConfig = document.getElementById('btnClearConfig');
+    const inputUrl = document.getElementById('configSupabaseUrl');
+    const inputKey = document.getElementById('configSupabaseKey');
+
+    if (btnSaveConfig) {
+      btnSaveConfig.addEventListener('click', async () => {
+        const url = inputUrl?.value?.trim() || '';
+        const key = inputKey?.value?.trim() || '';
+
+        if (!url || !key) {
+          this.showAuthFeedback('Por favor, preencha a URL e a Chave Pública (anon key).', 'error');
+          return;
+        }
+
+        Config.saveSupabaseConfig(url, key);
+        this.showAuthFeedback('Conectando ao Supabase...', 'success');
+
+        const success = await SupabaseService.init();
+        if (success) {
+          this.showAuthFeedback('Credenciais salvas e cliente conectado com sucesso!', 'success');
+          setTimeout(() => {
+            this.switchAuthTab('login');
+          }, 800);
+        } else {
+          this.showAuthFeedback('Credenciais salvas, mas verifique se a URL é válida e começa com https://', 'error');
+        }
+      });
+    }
+
+    if (btnClearConfig) {
+      btnClearConfig.addEventListener('click', () => {
+        if (confirm('Deseja limpar as credenciais salvas do Supabase?')) {
+          Config.clearSupabaseConfig();
+          if (inputUrl) inputUrl.value = '';
+          if (inputKey) inputKey.value = '';
+          this.showAuthFeedback('Credenciais removidas.', 'error');
+          this.setSyncStatus('offline', 'Modo Local');
+        }
+      });
+    }
+  }
+
+  switchAuthTab(tabName) {
+    this.currentAuthTab = tabName;
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+
+    modal.querySelectorAll('.auth-tab').forEach(t => {
+      t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
+    });
+
+    const form = document.getElementById('authForm');
+    const configPanel = document.getElementById('authConfigPanel');
+    const heading = document.getElementById('authModalHeading');
+    const confirmGroup = document.getElementById('groupConfirmPassword');
+    const confirmInput = document.getElementById('authConfirmPassword');
+    const submitText = document.getElementById('authSubmitText');
+    const feedback = document.getElementById('authFeedback');
+
+    if (feedback) {
+      feedback.style.display = 'none';
+      feedback.textContent = '';
+    }
+
+    if (tabName === 'config') {
+      if (form) form.style.display = 'none';
+      if (configPanel) configPanel.style.display = 'block';
+      if (heading) heading.textContent = 'Configurar Supabase';
+
+      const cfg = Config.getSupabaseConfig();
+      const inputUrl = document.getElementById('configSupabaseUrl');
+      const inputKey = document.getElementById('configSupabaseKey');
+      if (inputUrl) inputUrl.value = cfg.url;
+      if (inputKey) inputKey.value = cfg.anonKey;
+    } else {
+      if (configPanel) configPanel.style.display = 'none';
+      if (form) form.style.display = 'block';
+
+      if (tabName === 'signup') {
+        if (heading) heading.textContent = 'Criar Nova Conta';
+        if (confirmGroup) confirmGroup.style.display = 'block';
+        if (confirmInput) confirmInput.required = true;
+        if (submitText) submitText.textContent = 'Cadastrar e Sincronizar';
+      } else {
+        if (heading) heading.textContent = 'Entrar na sua Conta';
+        if (confirmGroup) confirmGroup.style.display = 'none';
+        if (confirmInput) confirmInput.required = false;
+        if (submitText) submitText.textContent = 'Entrar na Conta';
+      }
+    }
+  }
+
+  showAuthFeedback(message, type = 'error') {
+    const feedback = document.getElementById('authFeedback');
+    if (!feedback) return;
+    feedback.className = `auth-feedback ${type}`;
+    feedback.textContent = message;
+    feedback.style.display = 'block';
+  }
+
+  async handleAuthSubmit() {
+    const emailInput = document.getElementById('authEmail');
+    const passwordInput = document.getElementById('authPassword');
+    const confirmInput = document.getElementById('authConfirmPassword');
+    const submitBtn = document.getElementById('btnAuthSubmit');
+    const submitText = document.getElementById('authSubmitText');
+
+    const email = emailInput?.value?.trim() || '';
+    const password = passwordInput?.value || '';
+    const confirmPassword = confirmInput?.value || '';
+
+    if (!Config.isConfigured()) {
+      this.showAuthFeedback('Configure primeiro a URL e a chave do Supabase na aba "Configurar Supabase".', 'error');
+      this.switchAuthTab('config');
+      return;
+    }
+
+    if (!email || !password) {
+      this.showAuthFeedback('Preencha todos os campos obrigatórios.', 'error');
+      return;
+    }
+
+    if (this.currentAuthTab === 'signup') {
+      if (password.length < 6) {
+        this.showAuthFeedback('A senha deve conter no mínimo 6 caracteres.', 'error');
+        return;
+      }
+      if (password !== confirmPassword) {
+        this.showAuthFeedback('As senhas digitadas não conferem.', 'error');
+        return;
+      }
+    }
+
+    const originalText = submitText.textContent;
+    submitBtn.disabled = true;
+    submitText.textContent = 'Aguarde...';
+
+    try {
+      if (this.currentAuthTab === 'signup') {
+        const { data, error } = await SupabaseService.signUp(email, password);
+        if (error) {
+          this.showAuthFeedback(error.message || 'Erro ao criar conta.', 'error');
+        } else {
+          this.showAuthFeedback('Conta criada com sucesso! Se a confirmação de email estiver desativada no seu Supabase, você já pode entrar.', 'success');
+          if (data?.session) {
+            setTimeout(() => {
+              document.getElementById('authModal').style.display = 'none';
+            }, 1000);
+          }
+        }
+      } else {
+        const { data, error } = await SupabaseService.signIn(email, password);
+        if (error) {
+          this.showAuthFeedback(error.message || 'Email ou senha inválidos.', 'error');
+        } else {
+          this.showAuthFeedback('Login realizado com sucesso!', 'success');
+          setTimeout(() => {
+            document.getElementById('authModal').style.display = 'none';
+          }, 800);
+        }
+      }
+    } catch (err) {
+      this.showAuthFeedback(err.message || 'Erro inesperado de conexão.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitText.textContent = originalText;
     }
   }
 
