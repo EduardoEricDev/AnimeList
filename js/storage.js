@@ -4,69 +4,6 @@
 
 const STORAGE_KEY = 'animetracker_data_v1';
 
-// Initial sample data to give a clean Notion feel on first launch
-const SAMPLE_ANIMES = [
-  {
-    id: 'sample-1',
-    title: 'Sousou no Frieren',
-    originalTitle: '葬送のフリーレン (Frieren: Beyond Journey\'s End)',
-    coverImage: 'https://cdn.myanimelist.net/images/anime/1015/138006l.jpg',
-    bannerImage: 'https://cdn.myanimelist.net/images/anime/1015/138006l.jpg',
-    status: 'completed',
-    score: 10,
-    season: 'Outono',
-    year: 2023,
-    studio: 'Madhouse',
-    format: 'TV',
-    totalEpisodes: 28,
-    currentEpisode: 28,
-    favorite: true,
-    genres: ['Aventura', 'Fantasia', 'Drama'],
-    synopsis: 'Após a derrota do Rei Demônio pelo grupo do herói, a maga elfa Frieren segue sua longa jornada através das décadas, refletindo sobre os laços humanos.',
-    generalNotes: 'Uma das obras mais emocionantes e poéticas já feitas. A trilha sonora do Evan Call é espetacular.',
-    links: [
-      { id: 'lnk-1', title: 'Crunchyroll', url: 'https://www.crunchyroll.com/series/GG5H5XMQ5/frieren-beyond-journeys-end' },
-      { id: 'lnk-2', title: 'MyAnimeList', url: 'https://myanimelist.net/anime/52991/Sousou_no_Frieren' }
-    ],
-    episodesData: {
-      1: { watched: true, note: 'Início calmo e melancólico. O funeral do Himmel...' },
-      2: { watched: true, note: 'Fern crescendo sob os cuidados de Heiter.' },
-      3: { watched: true, note: 'Reencontro de Frieren e Fern partindo na jornada.' },
-      26: { watched: true, note: 'Teste de mago de 1ª classe contra o clone da Frieren! Animação absurda.' },
-      28: { watched: true, note: 'Despedida emocionante. Já ansioso pela 2ª temporada!' }
-    },
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'sample-2',
-    title: 'Solo Leveling',
-    originalTitle: '俺だけレベルアップな件 (Ore dake Level Up na Ken)',
-    coverImage: 'https://cdn.myanimelist.net/images/anime/1484/141018l.jpg',
-    bannerImage: 'https://cdn.myanimelist.net/images/anime/1484/141018l.jpg',
-    status: 'watching',
-    score: 9,
-    season: 'Inverno',
-    year: 2024,
-    studio: 'A-1 Pictures',
-    format: 'TV',
-    totalEpisodes: 12,
-    currentEpisode: 8,
-    favorite: true,
-    genres: ['Ação', 'Fantasia'],
-    synopsis: 'Sung Jin-woo, o caçador mais fraco da humanidade, acorda em um hospital após uma dungeon dupla mortal com uma misteriosa interface flutuante diante de seus olhos.',
-    generalNotes: 'Adaptação muito fiel ao Manhwa. As lutas estão com animação de altíssimo nível.',
-    links: [
-      { id: 'lnk-3', title: 'Crunchyroll', url: 'https://www.crunchyroll.com/series/GDKH4EX4W/solo-leveling' }
-    ],
-    episodesData: {
-      1: { watched: true, note: 'O terror da dungeon dupla e a estátua rindo!' },
-      4: { watched: true, note: 'Jinwoo no metrô de Kasaka derrotando o primeiro grande boss.' },
-      6: { watched: true, note: 'Traição na dungeon de insetos.' }
-    },
-    updatedAt: new Date().toISOString()
-  }
-];
-
 export const Storage = {
   /**
    * Retrieves all animes from LocalStorage
@@ -75,11 +12,15 @@ export const Storage = {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (!data) {
-        // Initialize with sample data if first time
-        this.saveAll(SAMPLE_ANIMES);
-        return SAMPLE_ANIMES;
+        return [];
       }
-      return JSON.parse(data);
+      const list = JSON.parse(data);
+      // Remove animes de exemplo legados (sample-1, sample-2) caso existam
+      const cleaned = Array.isArray(list) ? list.filter(a => a && a.id !== 'sample-1' && a.id !== 'sample-2') : [];
+      if (cleaned.length !== list.length) {
+        this.saveAll(cleaned);
+      }
+      return cleaned;
     } catch (e) {
       console.error('Erro ao ler do LocalStorage:', e);
       return [];
