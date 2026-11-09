@@ -1,0 +1,9 @@
+# Arquivos e pastas locais e de infraestrutura que nao precisam ir para o deploy publico
+backend/
+scripts/
+iniciar.bat
+launch-app.vbs
+*.sql
+*.toml
+.git/
+.gemini/
