@@ -241,9 +241,14 @@ class App {
         this.showToast(result.message || 'Conectado com sucesso à nuvem!');
         this.refreshUI();
       } catch (err) {
+        console.error('Erro de autenticação:', err);
         if (alertBox) {
           alertBox.className = 'auth-alert error';
-          alertBox.textContent = err.message || 'Erro ao comunicar com o servidor.';
+          let msg = err.message || 'Erro ao comunicar com o servidor.';
+          if (msg === 'Failed to fetch') {
+            msg = 'Não foi possível conectar ao servidor Cloudflare. Verifique a conexão ou tente novamente em instantes.';
+          }
+          alertBox.textContent = msg;
           alertBox.style.display = 'block';
         }
       } finally {
