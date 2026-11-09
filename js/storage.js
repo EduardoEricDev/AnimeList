@@ -124,6 +124,9 @@ export const Storage = {
     }
 
     this.saveAll(list);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('animelist:datachanged', { detail: { type: 'save', id: record.id } }));
+    }
     return record;
   },
 
@@ -133,6 +136,9 @@ export const Storage = {
   delete(id) {
     const list = this.getAll().filter(item => item.id !== id);
     this.saveAll(list);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('animelist:datachanged', { detail: { type: 'delete', id } }));
+    }
   },
 
   /**

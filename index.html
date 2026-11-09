@@ -46,6 +46,14 @@
           Exportar Backup
         </button>
 
+        <!-- Cloudflare Sync / Auth Container -->
+        <div id="authHeaderContainer">
+          <button class="btn" id="btnOpenAuthModal" title="Conectar ou sincronizar com o banco de dados na nuvem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Nuvem • Entrar</span>
+          </button>
+        </div>
+
         <button class="btn btn-primary" id="btnOpenAddModal">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           Novo Anime
@@ -440,6 +448,71 @@
           Excluir Anime
         </button>
         <button class="btn" data-action="close-modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: Autenticação & Nuvem Cloudflare D1
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modalAuth" role="dialog" aria-modal="true" aria-labelledby="modalAuthTitle">
+    <div class="modal-container modal-auth">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">☁️</span>
+          <h2 class="modal-title" id="modalAuthTitle">Sincronização Cloudflare</h2>
+        </div>
+        <button class="modal-close-btn" data-action="close-modal" aria-label="Fechar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Auth Tabs (Entrar / Criar Conta) -->
+        <div class="auth-tabs" role="tablist">
+          <button type="button" class="auth-tab-btn active" id="tabAuthLogin" data-auth-tab="login">
+            Entrar
+          </button>
+          <button type="button" class="auth-tab-btn" id="tabAuthRegister" data-auth-tab="register">
+            Criar Conta
+          </button>
+        </div>
+
+        <!-- Feedback Alert Box -->
+        <div id="authAlert" class="auth-alert" style="display: none;"></div>
+
+        <form id="formAuth">
+          <!-- Nome (apenas no cadastro) -->
+          <div class="form-group" id="groupAuthName" style="display: none;">
+            <label class="form-label" for="inputAuthName">Seu Nome / Apelido</label>
+            <input type="text" id="inputAuthName" class="form-input" placeholder="Como quer ser chamado..." autocomplete="name" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputAuthEmail">Email *</label>
+            <input type="email" id="inputAuthEmail" class="form-input" required placeholder="seu@email.com" autocomplete="email" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputAuthPassword">Senha *</label>
+            <input type="password" id="inputAuthPassword" class="form-input" required minlength="6" placeholder="Mínimo de 6 caracteres" autocomplete="current-password" />
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="auth-checkbox-label">
+              <input type="checkbox" id="checkSyncLocalData" checked />
+              <span>Sincronizar meus animes locais para a nuvem ao entrar</span>
+            </label>
+          </div>
+
+          <div class="modal-footer" style="padding-left: 0; padding-right: 0; margin-top: 1.25rem;">
+            <button type="button" class="btn" data-action="close-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitAuth">
+              <span id="btnSubmitAuthText">Entrar</span>
+              <div class="search-spinner" id="authSpinner" style="display: none; width: 14px; height: 14px; position: static; transform: none; border-width: 2px;"></div>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

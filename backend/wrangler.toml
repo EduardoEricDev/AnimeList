@@ -1,0 +1,19 @@
+# ==============================================================================
+# Cloudflare Worker / D1 Configuration (Wrangler)
+# ==============================================================================
+
+name = "animelist-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "animelist-db"
+database_id = "2dc3038c-9384-494c-badf-25a87f5be03f" # Preenchido com: npx wrangler d1 create animelist-db
+
+# Variáveis de Ambiente e Segredos (configure com: npx wrangler secret put JWT_SECRET)
+[vars]
+CORS_ORIGIN = "*"
+

@@ -6,6 +6,8 @@ import { Storage } from './storage.js';
 import { Render } from './render.js';
 import { Modal } from './modal.js';
 import { Api } from './api.js';
+import { Auth } from './auth.js';
+import { Sync } from './sync.js';
 
 class App {
   constructor() {
@@ -19,22 +21,45 @@ class App {
     this.recentSeason = 'all';        // 'all' | 'past' | 'winter' | 'spring' | 'summer' | 'fall'
     this.recentAnimesCache = {};
     this.isLoadingRecent = false;
+    this.authMode = 'login';          // 'login' | 'register'
   }
 
   init() {
     // Initialize Modal interactions
     Modal.init((toastMsg) => {
       this.refreshUI(toastMsg);
+      Sync.triggerDebouncedSync();
     });
 
     this.bindHeaderActions();
+    this.bindAuthActions();
     this.bindFilterTabs();
     this.bindViewSwitcher();
     this.bindSearchAndSort();
     this.bindListInteractions();
     this.bindBackupActions();
 
+    // Listen for cloud sync completion
+    window.addEventListener('animelist:synced', () => {
+      this.refreshUI();
+    });
+
+    // Check cloud session & initial sync
+    if (Auth.isLoggedIn()) {
+      Auth.checkSession().then((user) => {
+        this.renderAuthHeader();
+        if (user) {
+          Sync.sync().then(res => {
+            if (res.synced) {
+              this.showToast('Nuvem sincronizada');
+            }
+          });
+        }
+      });
+    }
+
     // Initial render
+    this.renderAuthHeader();
     this.refreshUI();
   }
 
@@ -49,6 +74,181 @@ class App {
       const target = e.target;
       if (target && (target.id === 'btnOpenAddModalEmpty' || target.closest('#btnOpenAddModalEmpty'))) {
         Modal.openAddModal();
+      }
+    });
+  }
+
+  renderAuthHeader() {
+    const container = document.getElementById('authHeaderContainer');
+    if (!container) return;
+
+    if (Auth.isLoggedIn()) {
+      const user = Auth.getUser() || {};
+      const displayName = user.name || (user.email ? user.email.split('@')[0] : 'Usuário');
+
+      container.innerHTML = `
+        <div class="user-profile-menu">
+          <button class="btn btn-user" id="btnUserMenu" title="Menu da Conta na Nuvem">
+            <span class="user-cloud-status"></span>
+            <span>${Render.escapeHTML(displayName)}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="user-dropdown-menu" id="userDropdown">
+            <div class="user-dropdown-header">
+              <span class="user-email-text" title="${Render.escapeHTML(user.email || '')}">${Render.escapeHTML(user.email || '')}</span>
+              <span class="user-sync-text">✓ Cloudflare D1 Conectado</span>
+            </div>
+            <button class="user-dropdown-item" id="btnForceSync">
+              🔄 Sincronizar Agora
+            </button>
+            <button class="user-dropdown-item danger" id="btnLogout">
+              🚪 Sair da Conta
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <button class="btn" id="btnOpenAuthModal" title="Conectar ou sincronizar com o banco de dados na nuvem">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Nuvem • Entrar</span>
+        </button>
+      `;
+    }
+  }
+
+  bindAuthActions() {
+    const modalAuth = document.getElementById('modalAuth');
+    const formAuth = document.getElementById('formAuth');
+    const tabLogin = document.getElementById('tabAuthLogin');
+    const tabRegister = document.getElementById('tabAuthRegister');
+    const groupName = document.getElementById('groupAuthName');
+    const submitText = document.getElementById('btnSubmitAuthText');
+    const spinner = document.getElementById('authSpinner');
+    const alertBox = document.getElementById('authAlert');
+
+    // Switch between Login and Register tabs
+    const setAuthMode = (mode) => {
+      this.authMode = mode;
+      if (alertBox) alertBox.style.display = 'none';
+
+      if (mode === 'login') {
+        tabLogin?.classList.add('active');
+        tabRegister?.classList.remove('active');
+        if (groupName) groupName.style.display = 'none';
+        if (submitText) submitText.textContent = 'Entrar';
+        const modalTitle = document.getElementById('modalAuthTitle');
+        if (modalTitle) modalTitle.textContent = 'Entrar na Nuvem';
+      } else {
+        tabRegister?.classList.add('active');
+        tabLogin?.classList.remove('active');
+        if (groupName) groupName.style.display = 'block';
+        if (submitText) submitText.textContent = 'Criar Conta';
+        const modalTitle = document.getElementById('modalAuthTitle');
+        if (modalTitle) modalTitle.textContent = 'Criar Conta na Nuvem';
+      }
+    };
+
+    tabLogin?.addEventListener('click', () => setAuthMode('login'));
+    tabRegister?.addEventListener('click', () => setAuthMode('register'));
+
+    // Delegate clicks for open modal, dropdown menu, sync & logout
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+
+      // 1. Open Auth Modal
+      if (target && (target.id === 'btnOpenAuthModal' || target.closest('#btnOpenAuthModal'))) {
+        setAuthMode('login');
+        if (formAuth) formAuth.reset();
+        if (alertBox) alertBox.style.display = 'none';
+        modalAuth?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => document.getElementById('inputAuthEmail')?.focus(), 80);
+        return;
+      }
+
+      // 2. Toggle user dropdown
+      const btnUserMenu = target.closest('#btnUserMenu');
+      const userDropdown = document.getElementById('userDropdown');
+      if (btnUserMenu) {
+        e.stopPropagation();
+        userDropdown?.classList.toggle('open');
+        return;
+      }
+
+      // Close dropdown when clicking outside
+      if (userDropdown && userDropdown.classList.contains('open') && !target.closest('.user-profile-menu')) {
+        userDropdown.classList.remove('open');
+      }
+
+      // 3. Force Sync Action
+      if (target && (target.id === 'btnForceSync' || target.closest('#btnForceSync'))) {
+        userDropdown?.classList.remove('open');
+        this.showToast('Sincronizando com Cloudflare D1...');
+        Sync.sync().then(res => {
+          if (res.synced) {
+            this.showToast(`Sincronizado! ${res.count} animes na nuvem.`);
+            this.refreshUI();
+          } else {
+            this.showToast(res.message || 'Erro ao sincronizar.');
+          }
+        });
+        return;
+      }
+
+      // 4. Logout Action
+      if (target && (target.id === 'btnLogout' || target.closest('#btnLogout'))) {
+        userDropdown?.classList.remove('open');
+        Auth.clearSession();
+        this.renderAuthHeader();
+        this.showToast('Você saiu da sua conta.');
+        return;
+      }
+    });
+
+    // Handle Form Submit
+    formAuth?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('inputAuthEmail')?.value.trim();
+      const password = document.getElementById('inputAuthPassword')?.value;
+      const name = document.getElementById('inputAuthName')?.value.trim();
+      const syncLocal = document.getElementById('checkSyncLocalData')?.checked;
+
+      if (!email || !password) return;
+
+      if (spinner) spinner.style.display = 'block';
+      if (submitText) submitText.style.display = 'none';
+      if (alertBox) alertBox.style.display = 'none';
+
+      try {
+        let result;
+        if (this.authMode === 'login') {
+          result = await Auth.login(email, password);
+        } else {
+          result = await Auth.register(email, password, name);
+        }
+
+        this.renderAuthHeader();
+
+        // Sincroniza dados locais se o usuário marcou
+        if (syncLocal) {
+          await Sync.sync();
+        }
+
+        modalAuth?.classList.remove('open');
+        document.body.style.overflow = '';
+        formAuth.reset();
+        this.showToast(result.message || 'Conectado com sucesso à nuvem!');
+        this.refreshUI();
+      } catch (err) {
+        if (alertBox) {
+          alertBox.className = 'auth-alert error';
+          alertBox.textContent = err.message || 'Erro ao comunicar com o servidor.';
+          alertBox.style.display = 'block';
+        }
+      } finally {
+        if (spinner) spinner.style.display = 'none';
+        if (submitText) submitText.style.display = 'inline';
       }
     });
   }

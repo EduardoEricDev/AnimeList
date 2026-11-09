@@ -39,3 +39,7 @@ backups/
 
 # Dependências
 node_modules/
+
+# Cloudflare Wrangler Local State
+.wrangler/
+backend/.wrangler/
