@@ -2,6 +2,8 @@
    Render Module - Gallery Cards, Notion Table, Status Pills & Badges
    ========================================================================== */
 
+import { Api } from './api.js';
+
 const STATUS_LABELS = {
   watching: 'Assistindo',
   completed: 'Completo',
@@ -250,22 +252,29 @@ export const Render = {
   /**
    * Renders the Recent Releases explorer view
    */
-  renderRecentReleases(recentAnimes, localAnimes, container, { category = 'seasonal', year = 2024, season = 'all' } = {}, isLoading = false) {
-    const yearsList = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015];
-    const currentYearNum = Number(year) || 2024;
+  renderRecentReleases(recentAnimes, localAnimes, container, { category = 'seasonal', year = new Date().getFullYear(), season = 'all' } = {}, isLoading = false) {
+    const systemYear = new Date().getFullYear();
+    const maxYear = Math.max(systemYear, 2026);
+    const yearsList = [];
+    for (let y = maxYear; y >= 2015; y--) {
+      yearsList.push(y);
+    }
+    const currentYearNum = Number(year) || systemYear;
+    const seasonInfo = Api.getSeasonInfo(currentYearNum);
+    const hasPastSeasons = seasonInfo.pastSeasons.length > 0;
 
     const headerHtml = `
       <div class="recent-releases-header">
         <div class="recent-controls-left">
-          <!-- Category Buttons -->
+          <!-- The 3 Original Category Buttons -->
           <div class="recent-sub-filters">
-            <button class="recent-filter-btn ${category === 'seasonal' ? 'active' : ''}" data-category="seasonal">
+            <button class="recent-filter-btn ${category === 'seasonal' ? 'active' : ''}" data-category="seasonal" title="Buscar animes por ano e temporada">
               🗓️ Por Temporada
             </button>
-            <button class="recent-filter-btn ${category === 'airing' ? 'active' : ''}" data-category="airing">
+            <button class="recent-filter-btn ${category === 'airing' ? 'active' : ''}" data-category="airing" title="Animes atualmente em exibição na TV">
               📺 Em Exibição Agora
             </button>
-            <button class="recent-filter-btn ${category === 'trending' ? 'active' : ''}" data-category="trending">
+            <button class="recent-filter-btn ${category === 'trending' ? 'active' : ''}" data-category="trending" title="Animes em alta na comunidade">
               ⚡ Em Alta
             </button>
           </div>
@@ -278,7 +287,7 @@ export const Render = {
                 <span class="recent-select-label">Ano:</span>
                 <select id="recentYearSelect" class="select-input" style="padding: 0.35rem 0.65rem; font-weight: 600;">
                   ${yearsList.map(y => `
-                    <option value="${y}" ${currentYearNum === y ? 'selected' : ''}>${y}</option>
+                    <option value="${y}" ${currentYearNum === y ? 'selected' : ''}>${y}${y === systemYear ? ' (Atual)' : ''}</option>
                   `).join('')}
                 </select>
               </div>
@@ -287,7 +296,10 @@ export const Render = {
               <div class="recent-select-wrap">
                 <span class="recent-select-label">Temporada:</span>
                 <select id="recentSeasonSelect" class="select-input" style="padding: 0.35rem 0.65rem; font-weight: 600;">
-                  <option value="all" ${season === 'all' ? 'selected' : ''}>Todas as Temporadas (~60 animes)</option>
+                  <option value="all" ${season === 'all' ? 'selected' : ''}>🌟 Todas as Temporadas (~60 animes)</option>
+                  ${hasPastSeasons ? `
+                    <option value="past" ${season === 'past' ? 'selected' : ''}>⏪ Temporadas Passadas deste Ano</option>
+                  ` : ''}
                   <option value="winter" ${season === 'winter' ? 'selected' : ''}>❄️ Inverno (Jan - Mar)</option>
                   <option value="spring" ${season === 'spring' ? 'selected' : ''}>🌸 Primavera (Abr - Jun)</option>
                   <option value="summer" ${season === 'summer' ? 'selected' : ''}>☀️ Verão (Jul - Set)</option>

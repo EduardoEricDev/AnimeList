@@ -25,6 +25,51 @@ function getSeasonFromDate(dateStr) {
 
 export const Api = {
   /**
+   * Calculates season status (past, current, upcoming) for a given year
+   */
+  getSeasonInfo(targetYear = new Date().getFullYear()) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+
+    let currentSeasonName = 'winter';
+    if (month === 12 || month === 1 || month === 2) currentSeasonName = 'winter';
+    else if (month >= 3 && month <= 5) currentSeasonName = 'spring';
+    else if (month >= 6 && month <= 8) currentSeasonName = 'summer';
+    else currentSeasonName = 'fall';
+
+    const seasonOrder = ['winter', 'spring', 'summer', 'fall'];
+    const curIdx = seasonOrder.indexOf(currentSeasonName);
+
+    const pastSeasons = [];
+    const seasonStatuses = {};
+
+    seasonOrder.forEach((s, idx) => {
+      if (targetYear < currentYear) {
+        seasonStatuses[s] = 'past';
+        pastSeasons.push(s);
+      } else if (targetYear > currentYear) {
+        seasonStatuses[s] = 'upcoming';
+      } else {
+        if (idx < curIdx) {
+          seasonStatuses[s] = 'past';
+          pastSeasons.push(s);
+        } else if (idx === curIdx) {
+          seasonStatuses[s] = 'current';
+        } else {
+          seasonStatuses[s] = 'upcoming';
+        }
+      }
+    });
+
+    return {
+      currentSeason: currentSeasonName,
+      seasonStatuses,
+      pastSeasons
+    };
+  },
+
+  /**
    * Searches for animes with Kitsu as primary and Jikan as fallback
    */
   async searchAnime(query) {
@@ -64,9 +109,11 @@ export const Api = {
   },
 
   /**
-   * Fetches seasonal, airing, or trending animes with Year and Season filters
+   * Fetches seasonal, airing, trending, or current year animes
    */
-  async getSeasonalReleases({ year = 2024, season = 'all', category = 'seasonal' } = {}) {
+  async getSeasonalReleases({ year = new Date().getFullYear(), season = 'all', category = 'current_year', airingFilter = 'all' } = {}) {
+    const yearNum = Number(year) || new Date().getFullYear();
+
     // 1. Airing category
     if (category === 'airing') {
       try {
@@ -74,7 +121,16 @@ export const Api = {
         const res = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const json = await res.json();
-        return (json.data || []).map(item => this.formatKitsuData(item));
+        let items = (json.data || []).map(item => this.formatKitsuData(item));
+
+        if (airingFilter === 'year') {
+          items = items.filter(item => {
+            if (item.year && item.year === yearNum) return true;
+            if (item.startDate && item.startDate.startsWith(String(yearNum))) return true;
+            return false;
+          });
+        }
+        return items;
       } catch (err) {
         console.warn('Erro ao carregar airing no Kitsu:', err);
         return [];
@@ -84,7 +140,7 @@ export const Api = {
     // 2. Trending category
     if (category === 'trending') {
       try {
-        const url = `${KITSU_BASE_URL}/trending/anime?limit=15`;
+        const url = `${KITSU_BASE_URL}/trending/anime?limit=20`;
         const res = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const json = await res.json();
@@ -95,37 +151,73 @@ export const Api = {
       }
     }
 
-    // 3. Seasonal category with Year & Season
+    // 3. Current Year or Seasonal Category
     try {
-      if (season && season !== 'all') {
-        const url = `${KITSU_BASE_URL}/anime?filter[seasonYear]=${year}&filter[season]=${season}&sort=-userCount&page[limit]=20`;
+      const seasonInfo = this.getSeasonInfo(yearNum);
+
+      // A. Specific Season (winter, spring, summer, fall)
+      if (season && season !== 'all' && season !== 'past') {
+        const url = `${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${season}&sort=-userCount&page[limit]=20`;
         const res = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const json = await res.json();
-        return (json.data || []).map(item => this.formatKitsuData(item));
-      } else {
-        // Fetch all 4 seasons for this year in parallel (15 each = 60 animes!)
-        const seasons = ['winter', 'spring', 'summer', 'fall'];
-        const requests = seasons.map(s => 
-          fetch(`${KITSU_BASE_URL}/anime?filter[seasonYear]=${year}&filter[season]=${s}&sort=-userCount&page[limit]=15`, {
+        return (json.data || []).map(item => this.formatKitsuData(item, season, yearNum));
+      }
+
+      // B. Past Seasons of this year
+      if (season === 'past') {
+        const pastList = seasonInfo.pastSeasons.length > 0 
+          ? seasonInfo.pastSeasons 
+          : ['winter']; // Se o ano acabou de começar, carrega a temporada inaugural
+
+        const requests = pastList.map(s => 
+          fetch(`${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${s}&sort=-userCount&page[limit]=15`, {
             headers: { 'Accept': 'application/vnd.api+json' }
-          }).then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] }))
+          }).then(r => r.ok ? r.json() : { data: [] }).then(j => ({ season: s, data: j.data || [] })).catch(() => ({ season: s, data: [] }))
         );
 
         const results = await Promise.all(requests);
-        const rawItems = results.flatMap(r => r.data || []);
-        
-        // Deduplicate by ID
         const seenIds = new Set();
         const uniqueItems = [];
-        for (const item of rawItems) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            uniqueItems.push(this.formatKitsuData(item));
+
+        for (const resItem of results) {
+          for (const item of resItem.data) {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              uniqueItems.push(this.formatKitsuData(item, resItem.season, yearNum));
+            }
           }
         }
+
+        // Ordena por popularidade geral das temporadas passadas
+        uniqueItems.sort((a, b) => (b.userCount || 0) - (a.userCount || 0));
         return uniqueItems;
       }
+
+      // C. All Seasons of the year (winter, spring, summer, fall)
+      const seasons = ['winter', 'spring', 'summer', 'fall'];
+      const requests = seasons.map(s => 
+        fetch(`${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${s}&sort=-userCount&page[limit]=15`, {
+          headers: { 'Accept': 'application/vnd.api+json' }
+        }).then(r => r.ok ? r.json() : { data: [] }).then(j => ({ season: s, data: j.data || [] })).catch(() => ({ season: s, data: [] }))
+      );
+
+      const results = await Promise.all(requests);
+      const seenIds = new Set();
+      const uniqueItems = [];
+
+      for (const resItem of results) {
+        for (const item of resItem.data) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            uniqueItems.push(this.formatKitsuData(item, resItem.season, yearNum));
+          }
+        }
+      }
+
+      // Ordena pelo anime mais popular do ano todo primeiro (misturando as melhores de cada temporada)
+      uniqueItems.sort((a, b) => (b.userCount || 0) - (a.userCount || 0));
+      return uniqueItems;
     } catch (err) {
       console.warn('Erro ao carregar temporada no Kitsu:', err);
       return [];
@@ -135,7 +227,7 @@ export const Api = {
   /**
    * Formats Kitsu API response
    */
-  formatKitsuData(item) {
+  formatKitsuData(item, querySeason = null, queryYear = null) {
     const attr = item.attributes || {};
     const titles = attr.titles || {};
 
@@ -150,8 +242,17 @@ export const Api = {
                    attr.coverImage?.original || 
                    cover;
 
-    const year = attr.startDate ? new Date(attr.startDate).getFullYear() : null;
-    const season = getSeasonFromDate(attr.startDate);
+    let year = attr.startDate ? new Date(attr.startDate).getFullYear() : null;
+    let season = getSeasonFromDate(attr.startDate);
+
+    // Ajuste fino se veio de consulta específica por temporada/ano
+    if (queryYear && querySeason && querySeason !== 'all' && querySeason !== 'past') {
+      const translated = SEASON_TRANSLATIONS[querySeason];
+      if (translated) season = translated;
+      year = queryYear;
+    } else if (queryYear && !year) {
+      year = queryYear;
+    }
 
     // Kitsu ratings are 0-100, convert to 0-10
     const rawScore = attr.averageRating ? parseFloat(attr.averageRating) : 0;
@@ -192,7 +293,8 @@ export const Api = {
       synopsis: attr.synopsis ? attr.synopsis.replace(/\(Source:.*?\)/g, '').trim() : '',
       generalNotes: '',
       links: links,
-      episodesData: {}
+      episodesData: {},
+      userCount: attr.userCount || 0
     };
   },
 

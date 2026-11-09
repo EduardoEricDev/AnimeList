@@ -7,6 +7,17 @@ $projectDir = Split-Path -Parent $PSScriptRoot
 $port = 3000
 $targetUrl = "http://localhost:$port"
 
+# 0. Verificar e recriar o atalho da Área de Trabalho caso não exista
+$desktopShortcut = Join-Path ([System.Environment]::GetFolderPath('Desktop')) "AnimeList.lnk"
+if (!(Test-Path $desktopShortcut)) {
+    $createShortcutScript = Join-Path $PSScriptRoot "create-desktop-shortcut.ps1"
+    if (Test-Path $createShortcutScript) {
+        try {
+            & $createShortcutScript
+        } catch {}
+    }
+}
+
 # 1. Função para verificar se a porta está respondendo
 function Test-PortActive {
     param([int]$p)

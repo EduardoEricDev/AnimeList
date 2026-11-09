@@ -13,9 +13,10 @@ class App {
     this.currentView = 'gallery';
     this.searchQuery = '';
     this.sortBy = 'updated';
+    const systemYear = new Date().getFullYear();
     this.recentCategory = 'seasonal'; // 'seasonal' | 'airing' | 'trending'
-    this.recentYear = 2024;
-    this.recentSeason = 'all';        // 'all' | 'winter' | 'spring' | 'summer' | 'fall'
+    this.recentYear = systemYear;
+    this.recentSeason = 'all';        // 'all' | 'past' | 'winter' | 'spring' | 'summer' | 'fall'
     this.recentAnimesCache = {};
     this.isLoadingRecent = false;
   }
@@ -122,7 +123,7 @@ class App {
     listContainer.addEventListener('change', (e) => {
       const target = e.target;
       if (target.id === 'recentYearSelect') {
-        this.recentYear = parseInt(target.value, 10) || 2024;
+        this.recentYear = parseInt(target.value, 10) || new Date().getFullYear();
         this.loadAndRenderRecent();
       } else if (target.id === 'recentSeasonSelect') {
         this.recentSeason = target.value || 'all';
@@ -133,7 +134,7 @@ class App {
     listContainer.addEventListener('click', (e) => {
       const target = e.target;
 
-      // 1. Sub-filter buttons inside Recent Releases (Temporada, Airing, Trending)
+      // 1. Sub-filter buttons inside Recent Releases (Por Temporada, Airing, Trending)
       const recentFilterBtn = target.closest('.recent-filter-btn');
       if (recentFilterBtn) {
         this.recentCategory = recentFilterBtn.getAttribute('data-category') || 'seasonal';
