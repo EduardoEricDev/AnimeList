@@ -5,6 +5,8 @@
 import { Storage } from './storage.js';
 import { Api } from './api.js';
 
+const EP_CHUNK_SIZE = 100;
+
 export const Modal = {
   activeAnimeId: null,
   activeTab: 'episodes',
@@ -14,6 +16,7 @@ export const Modal = {
   onDataChangedCallback: null,
   episodeViewMode: 'grid', // 'grid' (Notion compact grid) or 'list' (detailed expandable)
   selectedGridEp: null,    // Ep number whose note is currently open in grid mode
+  activeEpChunkStart: null, // 1-based start episode of active 100-ep range when total > 100
 
   escapeHTML(str) {
     if (str === null || str === undefined) return '';
@@ -238,6 +241,14 @@ export const Modal = {
         }
       });
     }
+
+    const btnRefreshAnimeApi = document.getElementById('btnRefreshAnimeApi');
+    if (btnRefreshAnimeApi) {
+      btnRefreshAnimeApi.addEventListener('click', () => {
+        if (!this.activeAnimeId) return;
+        this.refreshAnimeFromApi(this.activeAnimeId, true);
+      });
+    }
   },
 
   triggerDataChange(toastMsg) {
@@ -251,6 +262,7 @@ export const Modal = {
     document.body.style.overflow = '';
     this.activeAnimeId = null;
     this.selectedGridEp = null;
+    this.activeEpChunkStart = null;
   },
 
   /* ==========================================================================
@@ -419,22 +431,45 @@ export const Modal = {
 
     this.activeAnimeId = id;
     this.selectedGridEp = null;
+    this.activeEpChunkStart = null;
     const modal = document.getElementById('modalAnimeDetail');
     if (!modal) return;
 
-    // Set banner and poster
+    this.populateDetailFields(anime);
+
+    // Render Sub-tabs
+    this.renderEpisodesTab(anime);
+    this.renderLinksTab(anime);
+    this.renderNotesTab(anime);
+
+    // Switch to first tab by default
+    this.switchDetailTab('episodes');
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Auto-enrich entries with missing episodes/genres or legacy 'Kitsu Anime' placeholder
+    const hasMissingData =
+      anime.studio === 'Kitsu Anime' ||
+      !anime.totalEpisodes ||
+      !Array.isArray(anime.genres) ||
+      anime.genres.length === 0;
+    if (hasMissingData && anime.studio !== 'Manual') {
+      this.refreshAnimeFromApi(id, false);
+    }
+  },
+
+  populateDetailFields(anime) {
     const bannerImg = document.getElementById('detailBannerImg');
     const posterImg = document.getElementById('detailPosterImg');
     if (bannerImg) bannerImg.src = anime.bannerImage || anime.coverImage || '';
     if (posterImg) posterImg.src = anime.coverImage || '';
 
-    // Title & subtitle
     const titleEl = document.getElementById('detailTitle');
     const subtitleEl = document.getElementById('detailSubtitle');
     if (titleEl) titleEl.textContent = anime.title;
     if (subtitleEl) subtitleEl.textContent = anime.originalTitle || [anime.season, anime.year, anime.studio].filter(Boolean).join(' • ');
 
-    // Notion Properties Pane
     const statusSelect = document.getElementById('detailStatusSelect');
     if (statusSelect) statusSelect.value = anime.status || 'plan_to_watch';
 
@@ -450,20 +485,52 @@ export const Modal = {
     const propGenres = document.getElementById('propDetailGenres');
     if (propGenres) {
       propGenres.innerHTML = anime.genres && anime.genres.length > 0
-        ? anime.genres.map((g) => `<span class="genre-tag">${g}</span>`).join(' ')
+        ? anime.genres.map((g) => `<span class="genre-tag">${this.escapeHTML(g)}</span>`).join(' ')
         : '—';
     }
+  },
 
-    // Render Sub-tabs
-    this.renderEpisodesTab(anime);
-    this.renderLinksTab(anime);
-    this.renderNotesTab(anime);
+  async refreshAnimeFromApi(animeId, showFeedback = false) {
+    const anime = Storage.getById(animeId);
+    if (!anime) return;
 
-    // Switch to first tab by default
-    this.switchDetailTab('episodes');
+    const btn = document.getElementById('btnRefreshAnimeApi');
+    if (btn && showFeedback) {
+      btn.disabled = true;
+      btn.textContent = '↻ ...';
+    }
 
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    try {
+      const enriched = await Api.enrichAnimeData(anime);
+      const changed =
+        enriched.totalEpisodes !== anime.totalEpisodes ||
+        enriched.studio !== anime.studio ||
+        JSON.stringify(enriched.genres || []) !== JSON.stringify(anime.genres || []) ||
+        enriched.bannerImage !== anime.bannerImage ||
+        enriched.synopsis !== anime.synopsis;
+
+      if (changed) {
+        const saved = Storage.save(enriched);
+        if (this.activeAnimeId === animeId) {
+          this.populateDetailFields(saved);
+          this.renderEpisodesTab(saved);
+          this.renderNotesTab(saved);
+        }
+        this.triggerDataChange(showFeedback ? 'Dados sincronizados com a API!' : undefined);
+      } else if (showFeedback) {
+        this.triggerDataChange('Os dados já estão atualizados!');
+      }
+    } catch (err) {
+      console.warn('Falha ao atualizar anime pela API:', err);
+      if (showFeedback) {
+        this.triggerDataChange('Não foi possível consultar a API agora.');
+      }
+    } finally {
+      if (btn && showFeedback) {
+        btn.disabled = false;
+        btn.textContent = '↻ API';
+      }
+    }
   },
 
   switchDetailTab(tabKey) {
@@ -517,9 +584,53 @@ export const Modal = {
     }
   },
 
+  getEpisodeChunkRange(anime, total) {
+    if (total <= EP_CHUNK_SIZE) {
+      return { start: 1, end: total, hasChunks: false };
+    }
+
+    if (!this.activeEpChunkStart || this.activeEpChunkStart > total) {
+      const targetEp = this.selectedGridEp || Math.min(total, Math.max(1, (anime.currentEpisode || 0) + 1));
+      this.activeEpChunkStart = Math.floor((targetEp - 1) / EP_CHUNK_SIZE) * EP_CHUNK_SIZE + 1;
+    }
+
+    const start = this.activeEpChunkStart;
+    const end = Math.min(total, start + EP_CHUNK_SIZE - 1);
+    return { start, end, hasChunks: true };
+  },
+
+  renderEpisodeRangeTabsHtml(total, activeStart) {
+    if (total <= EP_CHUNK_SIZE) return '';
+    let tabs = '';
+    for (let s = 1; s <= total; s += EP_CHUNK_SIZE) {
+      const e = Math.min(total, s + EP_CHUNK_SIZE - 1);
+      tabs += `
+        <button type="button" class="ep-range-btn ${s === activeStart ? 'active' : ''}" data-ep-range-start="${s}">
+          ${s}–${e}
+        </button>
+      `;
+    }
+    return `<div class="ep-range-tabs" role="tablist" aria-label="Intervalos de episódios">${tabs}</div>`;
+  },
+
+  bindEpisodeRangeTabs(wrapper) {
+    wrapper.querySelectorAll('[data-ep-range-start]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.activeEpChunkStart = parseInt(btn.getAttribute('data-ep-range-start') || '1', 10);
+        if (this.activeAnimeId) {
+          const currentAnime = Storage.getById(this.activeAnimeId);
+          if (currentAnime) this.renderEpisodesTab(currentAnime);
+        }
+      });
+    });
+  },
+
   renderEpisodesGrid(anime, wrapper, total) {
+    const { start, end } = this.getEpisodeChunkRange(anime, total);
+    const rangeTabsHtml = this.renderEpisodeRangeTabsHtml(total, start);
+
     let buttonsHtml = '';
-    for (let i = 1; i <= total; i++) {
+    for (let i = start; i <= end; i++) {
       const epData = anime.episodesData?.[i] || { watched: i <= (anime.currentEpisode || 0), note: '' };
       const isWatched = Boolean(epData.watched);
       const hasNote = Boolean(epData.note && epData.note.trim().length > 0);
@@ -528,7 +639,7 @@ export const Modal = {
       buttonsHtml += `
         <button 
           type="button"
-          class="ep-grid-btn ${isWatched ? 'watched' : ''} ${hasNote ? 'has-note' : ''} ${isSelected ? 'active-note-target' : ''}" 
+          class="ep-grid-btn ${i >= 1000 ? 'ep-4digit' : ''} ${isWatched ? 'watched' : ''} ${hasNote ? 'has-note' : ''} ${isSelected ? 'active-note-target' : ''}" 
           data-ep="${i}"
           title="Episódio ${i} • ${isWatched ? 'Assistido' : 'Não assistido'}${hasNote ? ' (Possui anotação)' : ''}"
         >
@@ -564,7 +675,7 @@ export const Modal = {
             class="ep-note-textarea" 
             id="gridNoteTextarea" 
             placeholder="Escreva seus comentários, impressões ou minuto marcante do episódio ${epNum} (salva automaticamente)..."
-          >${epData.note || ''}</textarea>
+          >${this.escapeHTML(epData.note || '')}</textarea>
         </div>
       `;
     } else {
@@ -577,10 +688,13 @@ export const Modal = {
 
     wrapper.innerHTML = `
       <div class="episodes-grid-wrapper">
+        ${rangeTabsHtml}
         <div class="episodes-grid">${buttonsHtml}</div>
         ${noteEditorHtml}
       </div>
     `;
+
+    this.bindEpisodeRangeTabs(wrapper);
 
     // Events in Grid buttons
     wrapper.querySelectorAll('.ep-grid-btn').forEach(btn => {
@@ -640,8 +754,11 @@ export const Modal = {
   },
 
   renderEpisodesList(anime, wrapper, total) {
-    let html = '<div class="episodes-list">';
-    for (let i = 1; i <= total; i++) {
+    const { start, end } = this.getEpisodeChunkRange(anime, total);
+    const rangeTabsHtml = this.renderEpisodeRangeTabsHtml(total, start);
+
+    let html = `${rangeTabsHtml}<div class="episodes-list">`;
+    for (let i = start; i <= end; i++) {
       const epData = anime.episodesData?.[i] || { watched: i <= (anime.currentEpisode || 0), note: '' };
       const isWatched = Boolean(epData.watched);
       const hasNote = Boolean(epData.note && epData.note.trim().length > 0);
@@ -685,6 +802,8 @@ export const Modal = {
     }
     html += '</div>';
     wrapper.innerHTML = html;
+
+    this.bindEpisodeRangeTabs(wrapper);
 
     // Checkbox toggle
     wrapper.querySelectorAll('[data-action="toggle-watched"]').forEach(btn => {

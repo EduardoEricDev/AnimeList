@@ -545,6 +545,62 @@
   gap: 1rem;
 }
 
+/* Range pagination tabs for long series (100+ episodes) */
+.ep-range-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.ep-range-btn {
+  flex-shrink: 0;
+  padding: 0.3rem 0.65rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.ep-range-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+.ep-range-btn.active {
+  background: rgba(71, 118, 230, 0.18);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.btn-refresh-api {
+  font-size: 0.78rem;
+  color: var(--text-accent);
+  border-color: rgba(82, 156, 202, 0.35);
+}
+
+.btn-refresh-api:hover:not(:disabled) {
+  background: rgba(82, 156, 202, 0.15);
+  border-color: rgba(82, 156, 202, 0.55);
+  color: #8fd0f5;
+}
+
+.btn-refresh-api:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .episodes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
@@ -564,6 +620,7 @@
   font-family: var(--font-sans);
   font-size: 0.95rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -571,6 +628,10 @@
   justify-content: center;
   transition: all var(--transition-fast);
   user-select: none;
+}
+
+.ep-grid-btn.ep-4digit {
+  font-size: 0.78rem;
 }
 
 .ep-grid-btn:hover {
@@ -903,6 +964,9 @@
   .ep-grid-btn {
     height: 44px;
     font-size: 0.88rem;
+  }
+  .ep-grid-btn.ep-4digit {
+    font-size: 0.72rem;
   }
   .add-link-form {
     flex-direction: column;

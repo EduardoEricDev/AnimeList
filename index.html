@@ -41,10 +41,10 @@
   <!-- Top Navigation Bar -->
   <header class="app-header">
     <div class="header-inner">
-      <div class="workspace-branding">
+      <button type="button" class="workspace-branding" id="btnHomeBrand" title="Voltar para seus animes" aria-label="Aleg Animes - Voltar para seus animes">
         <span class="workspace-icon">⛩️</span>
         <span class="workspace-title">Aleg Animes</span>
-      </div>
+      </button>
 
       <div class="header-actions">
         <!-- Hidden file input for JSON import -->
@@ -417,6 +417,7 @@
               <button class="btn" id="btnMarkAllEpisodes" title="Marcar todos como assistidos">Marcar Todos</button>
               <button class="btn" id="btnUnmarkAllEpisodes" title="Desmarcar todos">Limpar</button>
               <button class="btn" id="btnAddExtraEpisode" title="Adicionar +1 episódio à contagem total">+ Extra</button>
+              <button class="btn btn-refresh-api" id="btnRefreshAnimeApi" title="Sincronizar total de episódios, estúdio e gêneros da API">↻ API</button>
             </div>
           </div>
 

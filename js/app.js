@@ -285,7 +285,10 @@ class App {
 
   bindFilterTabs() {
     const tabs = document.querySelectorAll('.tab-btn');
+    const filterTabsNav = document.querySelector('.filter-tabs');
     const btnBrowseAnimes = document.getElementById('btnBrowseAnimes');
+    const btnHomeBrand = document.getElementById('btnHomeBrand');
+    const searchInput = document.getElementById('filterSearchInput');
     const viewSwitcher = document.querySelector('.view-switcher');
     const sortSelect = document.getElementById('sortSelect');
 
@@ -309,6 +312,18 @@ class App {
       syncControlsVisibility(false);
       this.refreshUI();
     };
+
+    btnHomeBrand?.addEventListener('click', () => {
+      if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        this.searchQuery = '';
+      }
+      activatePersonalFilter('all');
+      if (filterTabsNav) {
+        filterTabsNav.scrollLeft = 0;
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 
     tabs.forEach(tab => {
       tab.addEventListener('click', (e) => {
@@ -385,7 +400,7 @@ class App {
       }
     });
 
-    listContainer.addEventListener('click', (e) => {
+    listContainer.addEventListener('click', async (e) => {
       const target = e.target;
 
       // 1. Sub-filter buttons inside Recent Releases (Por Temporada, Airing, Trending)
@@ -405,12 +420,15 @@ class App {
         const currentList = this.recentAnimesCache[cacheKey] || [];
         const animeData = currentList.find(a => a.id === animeId);
         if (animeData) {
+          addRecentBtn.disabled = true;
+          const needsEnrich = !animeData.totalEpisodes || !animeData.genres?.length || animeData.studio === 'Desconhecido';
+          const resolvedData = needsEnrich ? await Api.enrichAnimeData(animeData) : animeData;
           Storage.save({
-            ...animeData,
-            id: 'anime-' + Date.now(),
+            ...resolvedData,
+            id: resolvedData.id || 'anime-' + Date.now(),
             status: 'plan_to_watch'
           });
-          this.showToast(`"${animeData.title}" adicionado à sua lista!`);
+          this.showToast(`"${resolvedData.title}" adicionado à sua lista!`);
           this.refreshUI();
         }
         return;
@@ -431,6 +449,13 @@ class App {
           if (animeData) {
             Modal.openAddModal();
             Modal.selectApiSuggestion(animeData);
+            if (!animeData.totalEpisodes || !animeData.genres?.length || animeData.studio === 'Desconhecido') {
+              Api.enrichAnimeData(animeData).then(enriched => {
+                if (Modal.pendingAnimeData?.id === animeData.id) {
+                  Modal.selectApiSuggestion(enriched);
+                }
+              });
+            }
           }
         }
         return;

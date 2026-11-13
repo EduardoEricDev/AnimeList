@@ -62,6 +62,8 @@
   background: rgba(255, 215, 0, 0.12);
   color: #ffd700;
   border: 1px solid rgba(255, 215, 0, 0.25);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .score-pill svg {
@@ -87,6 +89,35 @@
   font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+.recent-season-badge {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-format-badge {
+  font-size: 0.72rem;
+  color: #eee;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -151,12 +182,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .anime-card-overlay-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .favorite-star-btn {
@@ -405,6 +440,20 @@
   .status-pill {
     font-size: 0.68rem;
     padding: 0.15rem 0.42rem;
+  }
+  .score-pill {
+    font-size: 0.68rem;
+    padding: 0.12rem 0.36rem;
+    gap: 0.2rem;
+  }
+  .score-pill svg {
+    width: 10px;
+    height: 10px;
+  }
+  .recent-season-badge,
+  .recent-format-badge {
+    font-size: 0.66rem;
+    padding: 2px 5px;
   }
   .favorite-star-btn {
     width: 24px;

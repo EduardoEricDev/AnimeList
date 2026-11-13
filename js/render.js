@@ -285,7 +285,7 @@ export const Render = {
               <!-- Ano -->
               <div class="recent-select-wrap">
                 <span class="recent-select-label">Ano:</span>
-                <select id="recentYearSelect" class="select-input" style="padding: 0.35rem 0.65rem; font-weight: 600;">
+                <select id="recentYearSelect" class="select-input">
                   ${yearsList.map(y => `
                     <option value="${y}" ${currentYearNum === y ? 'selected' : ''}>${y}${y === systemYear ? ' (Atual)' : ''}</option>
                   `).join('')}
@@ -295,7 +295,7 @@ export const Render = {
               <!-- Temporada -->
               <div class="recent-select-wrap">
                 <span class="recent-select-label">Temporada:</span>
-                <select id="recentSeasonSelect" class="select-input" style="padding: 0.35rem 0.65rem; font-weight: 600;">
+                <select id="recentSeasonSelect" class="select-input">
                   <option value="all" ${season === 'all' ? 'selected' : ''}>🌟 Todas as Temporadas (~60 animes)</option>
                   ${hasPastSeasons ? `
                     <option value="past" ${season === 'past' ? 'selected' : ''}>⏪ Temporadas Passadas deste Ano</option>
@@ -374,7 +374,7 @@ export const Render = {
           />
           <div class="anime-card-overlay">
             <div class="anime-card-overlay-top">
-              <span class="season-badge" style="background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 0.72rem; font-weight: 600;">
+              <span class="season-badge recent-season-badge">
                 ${seasonText}
               </span>
 
@@ -387,7 +387,7 @@ export const Render = {
             </div>
             
             <div class="anime-card-overlay-bottom">
-              <span style="font-size: 0.72rem; color: #eee; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px;">
+              <span class="recent-format-badge">
                 ${anime.format} • ${totalEps}
               </span>
             </div>
