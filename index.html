@@ -3,8 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Meus Animes • Catálogo & Tracker Pessoal</title>
-  <meta name="description" content="Catálogo pessoal de animes estilo Notion com busca automática na API, anotações de episódios, links customizados e backup local." />
+  <title>Aleg Animes • Organize e Acompanhe Seus Animes</title>
+  <meta name="description" content="Organize sua lista de animes em um só lugar: acompanhe episódios assistidos, faça anotações por episódio, descubra lançamentos da temporada e sincronize na nuvem." />
+
+  <!-- Open Graph / Social Previews (Discord, WhatsApp, etc.) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:site_name" content="Aleg Animes" />
+  <meta property="og:url" content="https://anime-list-tawny.vercel.app/" />
+  <meta property="og:title" content="Aleg Animes • Organize e Acompanhe Seus Animes" />
+  <meta property="og:description" content="Organize sua lista de animes em um só lugar: acompanhe episódios assistidos, faça anotações por episódio, descubra lançamentos da temporada e sincronize na nuvem." />
+  <meta property="og:image" content="https://anime-list-tawny.vercel.app/assets/icon.png" />
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Aleg Animes • Organize e Acompanhe Seus Animes" />
+  <meta name="twitter:description" content="Organize sua lista de animes em um só lugar: acompanhe episódios assistidos, faça anotações por episódio, descubra lançamentos da temporada e sincronize na nuvem." />
+  <meta name="twitter:image" content="https://anime-list-tawny.vercel.app/assets/icon.png" />
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
   <link rel="apple-touch-icon" href="assets/icon.png" />
   <meta name="theme-color" content="#191919" />
@@ -28,8 +43,7 @@
     <div class="header-inner">
       <div class="workspace-branding">
         <span class="workspace-icon">⛩️</span>
-        <span class="workspace-title">Meus Animes</span>
-        <span class="workspace-badge">Notion Clean</span>
+        <span class="workspace-title">Aleg Animes</span>
       </div>
 
       <div class="header-actions">
@@ -46,6 +60,12 @@
           Exportar Backup
         </button>
 
+        <!-- Botão Lista de Animes (Catálogo Global / Temporada) -->
+        <button class="btn btn-browse-animes" id="btnBrowseAnimes" title="Explorar lista de animes recentes, em exibição e em alta">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          <span>Lista de Animes</span>
+        </button>
+
         <!-- Cloudflare Sync / Auth Container -->
         <div id="authHeaderContainer">
           <button class="btn" id="btnOpenAuthModal" title="Conectar ou sincronizar com o banco de dados na nuvem">
@@ -53,11 +73,6 @@
             <span>Nuvem • Entrar</span>
           </button>
         </div>
-
-        <button class="btn btn-primary" id="btnOpenAddModal">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Novo Anime
-        </button>
       </div>
     </div>
   </header>
@@ -77,43 +92,44 @@
 
     <!-- Controls Bar: Status Filter Tabs & Sub-controls -->
     <section class="controls-bar">
-      <!-- Notion Pill Filter Tabs -->
-      <nav class="filter-tabs" aria-label="Filtro por status">
-        <button class="tab-btn active" data-filter="all">
-          <span>Todos</span>
-          <span class="tab-count" data-filter="all">0</span>
+      <!-- Status Filter Tabs + Inline Novo Anime Button -->
+      <div class="filter-tabs-row">
+        <nav class="filter-tabs" aria-label="Filtro por status">
+          <button class="tab-btn active" data-filter="all">
+            <span>Todos</span>
+            <span class="tab-count" data-filter="all">0</span>
+          </button>
+          <button class="tab-btn" data-filter="watching">
+            <span>Assistindo</span>
+            <span class="tab-count" data-filter="watching">0</span>
+          </button>
+          <button class="tab-btn" data-filter="plan_to_watch">
+            <span>Planejo Ver</span>
+            <span class="tab-count" data-filter="plan_to_watch">0</span>
+          </button>
+          <button class="tab-btn" data-filter="completed">
+            <span>Completos</span>
+            <span class="tab-count" data-filter="completed">0</span>
+          </button>
+          <button class="tab-btn" data-filter="paused">
+            <span>Pausados</span>
+            <span class="tab-count" data-filter="paused">0</span>
+          </button>
+          <button class="tab-btn" data-filter="dropped">
+            <span>Dropados</span>
+            <span class="tab-count" data-filter="dropped">0</span>
+          </button>
+          <button class="tab-btn" data-filter="favorites">
+            <span>★ Favoritos</span>
+            <span class="tab-count" data-filter="favorites">0</span>
+          </button>
+        </nav>
+
+        <button class="btn btn-primary btn-add-inline" id="btnOpenAddModal" title="Adicionar novo anime">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Novo Anime</span>
         </button>
-        <button class="tab-btn" data-filter="watching">
-          <span>Assistindo</span>
-          <span class="tab-count" data-filter="watching">0</span>
-        </button>
-        <button class="tab-btn" data-filter="plan_to_watch">
-          <span>Planejo Ver</span>
-          <span class="tab-count" data-filter="plan_to_watch">0</span>
-        </button>
-        <button class="tab-btn" data-filter="completed">
-          <span>Completos</span>
-          <span class="tab-count" data-filter="completed">0</span>
-        </button>
-        <button class="tab-btn" data-filter="paused">
-          <span>Pausados</span>
-          <span class="tab-count" data-filter="paused">0</span>
-        </button>
-        <button class="tab-btn" data-filter="dropped">
-          <span>Dropados</span>
-          <span class="tab-count" data-filter="dropped">0</span>
-        </button>
-        <button class="tab-btn" data-filter="favorites">
-          <span>★ Favoritos</span>
-          <span class="tab-count" data-filter="favorites">0</span>
-        </button>
-        <!-- Aba: Lançamentos Recentes -->
-        <button class="tab-btn tab-highlight" data-filter="recent_releases" title="Explorar animes recentes e da temporada">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-          <span>Lançamentos Recentes</span>
-          <span class="tab-badge-new">NOVO</span>
-        </button>
-      </nav>
+      </div>
 
       <!-- Sub-controls: Search, Sorter, View Switcher -->
       <div class="sub-controls">
@@ -149,6 +165,12 @@
     <!-- Main Dynamic View Container -->
     <div id="animesViewContainer"></div>
   </main>
+
+  <!-- Fixed Floating Action Button: Novo Anime (appears when scrolling down) -->
+  <button class="btn btn-primary fab-add-anime" id="fabAddAnime" title="Adicionar novo anime" aria-hidden="true" tabindex="-1">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <span>Novo Anime</span>
+  </button>
 
   <!-- ==========================================================================
        MODAL: Adicionar Novo Anime (Busca na API ou Manual)

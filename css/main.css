@@ -11,6 +11,7 @@
 html {
   color-scheme: dark;
   font-size: 15px;
+  overflow-x: clip;
 }
 
 body {
@@ -21,7 +22,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Custom Scrollbar - Minimal Notion Style */
@@ -47,7 +48,7 @@ body {
 .app-container {
   max-width: 1380px;
   margin: 0 auto;
-  padding: 0 2rem 4rem;
+  padding: 0 2.5rem 6rem;
 }
 
 /* ==========================================================================
@@ -58,12 +59,13 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
+  width: 100%;
   background: rgba(25, 25, 25, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-subtle);
-  padding: 0.85rem 2rem;
-  margin: 0 -2rem 1.75rem -2rem;
+  padding: 0.85rem 2.5rem;
+  margin: 0 0 1.75rem 0;
 }
 
 .header-inner {
@@ -72,7 +74,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.5rem;
 }
 
 /* Workspace Title */
@@ -83,6 +86,8 @@ body {
   text-decoration: none;
   color: var(--text-primary);
   user-select: none;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .workspace-icon {
@@ -97,6 +102,7 @@ body {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #f7f7f7;
+  white-space: nowrap;
 }
 
 .workspace-badge {
@@ -107,13 +113,15 @@ body {
   border: 1px solid var(--border-medium);
   border-radius: var(--border-radius-pill);
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* Header Controls & Actions */
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .btn {
@@ -165,6 +173,58 @@ body {
   color: var(--text-primary);
 }
 
+/* Browse Anime Catalog Button */
+.btn-browse-animes {
+  border-color: rgba(251, 179, 91, 0.35);
+  background: rgba(251, 179, 91, 0.08);
+  color: #fbb35b;
+}
+
+.btn-browse-animes:hover {
+  background: rgba(251, 179, 91, 0.16);
+  border-color: rgba(251, 179, 91, 0.55);
+  color: #ffd08a;
+}
+
+.btn-browse-animes.active {
+  background: #fbb35b;
+  border-color: #fbb35b;
+  color: #191919;
+  font-weight: 600;
+}
+
+/* Fixed Floating Action Button (Novo Anime - visible on scroll) */
+.fab-add-anime {
+  position: fixed;
+  bottom: 1.75rem;
+  right: 2.25rem;
+  z-index: 90;
+  padding: 0.72rem 1.2rem;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.92rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(35, 131, 226, 0.42), 0 2px 8px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(14px) scale(0.95);
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.fab-add-anime.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.fab-add-anime.visible:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(35, 131, 226, 0.52), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.fab-add-anime.visible:active {
+  transform: translateY(0) scale(0.97);
+}
+
 /* ==========================================================================
    Page Hero & Notion Cover/Title Area
    ========================================================================== */
@@ -177,7 +237,8 @@ body {
 .page-hero-title-group {
   display: flex;
   align-items: baseline;
-  gap: 0.85rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
   margin-bottom: 0.4rem;
 }
 
@@ -212,15 +273,29 @@ body {
   margin-bottom: 1.5rem;
 }
 
-/* Status Filter Tabs (Notion Pill Tabs) */
+/* Status Filter Tabs + Inline Add Button Row */
+.filter-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .filter-tabs {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-subtle);
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+}
+
+.btn-add-inline {
+  flex-shrink: 0;
 }
 
 .filter-tabs::-webkit-scrollbar {
@@ -242,6 +317,7 @@ body {
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab-btn:hover {
@@ -444,6 +520,7 @@ body {
 .sub-controls-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -535,12 +612,17 @@ body {
 .toast-container {
   position: fixed;
   bottom: 2rem;
-  right: 2rem;
+  right: 2.25rem;
   z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   pointer-events: none;
+  transition: bottom 0.22s ease;
+}
+
+body:has(.fab-add-anime.visible) .toast-container {
+  bottom: 5.5rem;
 }
 
 .toast {
@@ -571,25 +653,182 @@ body {
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .app-container {
-    padding: 0 1rem 3rem;
+    padding: 0 1.5rem 5.5rem;
   }
   .app-header {
-    padding: 0.75rem 1rem;
-    margin: 0 -1rem 1.5rem -1rem;
+    padding: 0.85rem 1.5rem;
+  }
+  .header-inner {
+    gap: 0.75rem;
+  }
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0 1.15rem 5.5rem;
+  }
+  .app-header {
+    padding: 0.75rem 1.15rem;
+    margin: 0 0 1.25rem 0;
+  }
+  .header-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .page-hero {
+    margin-bottom: 1.25rem;
   }
   .page-hero-title {
-    font-size: 1.6rem;
+    font-size: 1.55rem;
+  }
+  .page-hero-description {
+    font-size: 0.88rem;
   }
   .sub-controls {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
   }
   .search-box {
+    min-width: 0;
     max-width: 100%;
+    width: 100%;
   }
   .sub-controls-right {
+    width: 100%;
     justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .sub-controls-right .select-input {
+    flex: 1 1 150px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .view-switcher {
+    flex-shrink: 0;
+  }
+  .recent-releases-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  .recent-controls-left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .recent-sub-filters {
+    gap: 0.4rem;
+  }
+  .recent-filter-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .recent-selectors-group {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.75rem;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .recent-select-wrap {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .recent-select-wrap .select-input {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .recent-info-badge {
+    text-align: right;
+  }
+  .toast-container {
+    left: 1.15rem;
+    right: 1.15rem;
+    bottom: 1.15rem;
+  }
+  body:has(.fab-add-anime.visible) .toast-container {
+    bottom: 4.75rem;
+  }
+  .fab-add-anime {
+    bottom: 1.15rem;
+    right: 1.15rem;
+    padding: 0.65rem 1.05rem;
+    font-size: 0.86rem;
+  }
+  .toast {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .filter-tabs-row {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+  .filter-tabs {
+    flex: 1 1 100%;
+  }
+  .btn-add-inline {
+    width: 100%;
+    justify-content: center;
+  }
+  .header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .header-actions .btn,
+  .header-actions #authHeaderContainer,
+  .header-actions .user-profile-menu {
+    width: 100%;
+    min-width: 0;
+  }
+  .header-actions .btn {
+    padding: 0.48rem 0.55rem;
+    font-size: 0.8rem;
+    justify-content: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .view-btn {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .workspace-badge {
+    display: none;
+  }
+  .sub-controls-right .select-input {
+    flex: 1 1 100%;
+  }
+  .view-switcher {
+    width: 100%;
+  }
+  .view-btn {
+    flex: 1;
+    justify-content: center;
   }
 }

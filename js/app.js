@@ -12,6 +12,7 @@ import { Sync } from './sync.js';
 class App {
   constructor() {
     this.currentFilter = 'all';
+    this.lastPersonalFilter = 'all';
     this.currentView = 'gallery';
     this.searchQuery = '';
     this.sortBy = 'updated';
@@ -65,9 +66,34 @@ class App {
 
   bindHeaderActions() {
     const btnNewAnime = document.getElementById('btnOpenAddModal');
-    if (btnNewAnime) {
-      btnNewAnime.addEventListener('click', () => Modal.openAddModal());
-    }
+    const fabAddAnime = document.getElementById('fabAddAnime');
+
+    btnNewAnime?.addEventListener('click', () => Modal.openAddModal());
+    fabAddAnime?.addEventListener('click', () => Modal.openAddModal());
+
+    // Show floating bottom-right button only after scrolling past the inline button
+    let scrollRafPending = false;
+    const updateFabVisibility = () => {
+      scrollRafPending = false;
+      if (!btnNewAnime || !fabAddAnime) return;
+      const headerHeight = document.querySelector('.app-header')?.offsetHeight || 64;
+      const rect = btnNewAnime.getBoundingClientRect();
+      const isOutOfView = rect.bottom <= headerHeight + 8 || rect.top >= window.innerHeight;
+      fabAddAnime.classList.toggle('visible', isOutOfView);
+      fabAddAnime.setAttribute('aria-hidden', String(!isOutOfView));
+      fabAddAnime.tabIndex = isOutOfView ? 0 : -1;
+    };
+
+    const scheduleFabCheck = () => {
+      if (!scrollRafPending) {
+        scrollRafPending = true;
+        requestAnimationFrame(updateFabVisibility);
+      }
+    };
+
+    window.addEventListener('scroll', scheduleFabCheck, { passive: true });
+    window.addEventListener('resize', scheduleFabCheck, { passive: true });
+    updateFabVisibility();
 
     // Dynamic delegate for empty state button
     document.addEventListener('click', (e) => {
@@ -235,8 +261,7 @@ class App {
           await Sync.sync();
         }
 
-        modalAuth?.classList.remove('open');
-        document.body.style.overflow = '';
+        Modal.closeAll();
         formAuth.reset();
         this.showToast(result.message || 'Conectado com sucesso à nuvem!');
         this.refreshUI();
@@ -260,26 +285,50 @@ class App {
 
   bindFilterTabs() {
     const tabs = document.querySelectorAll('.tab-btn');
+    const btnBrowseAnimes = document.getElementById('btnBrowseAnimes');
+    const viewSwitcher = document.querySelector('.view-switcher');
+    const sortSelect = document.getElementById('sortSelect');
+
+    const syncControlsVisibility = (isBrowseMode) => {
+      if (isBrowseMode) {
+        if (viewSwitcher) viewSwitcher.style.display = 'none';
+        if (sortSelect) sortSelect.style.display = 'none';
+      } else {
+        if (viewSwitcher) viewSwitcher.style.display = 'flex';
+        if (sortSelect) sortSelect.style.display = 'block';
+      }
+    };
+
+    const activatePersonalFilter = (filterKey) => {
+      this.currentFilter = filterKey;
+      this.lastPersonalFilter = filterKey;
+      btnBrowseAnimes?.classList.remove('active');
+      tabs.forEach(t => {
+        t.classList.toggle('active', (t.getAttribute('data-filter') || 'all') === filterKey);
+      });
+      syncControlsVisibility(false);
+      this.refreshUI();
+    };
+
     tabs.forEach(tab => {
       tab.addEventListener('click', (e) => {
-        tabs.forEach(t => t.classList.remove('active'));
-        const clicked = e.currentTarget;
-        clicked.classList.add('active');
-        this.currentFilter = clicked.getAttribute('data-filter') || 'all';
-
-        // Toggle visibility of view switcher and sort dropdown if on recent releases tab
-        const viewSwitcher = document.querySelector('.view-switcher');
-        const sortSelect = document.getElementById('sortSelect');
-        if (this.currentFilter === 'recent_releases') {
-          if (viewSwitcher) viewSwitcher.style.display = 'none';
-          if (sortSelect) sortSelect.style.display = 'none';
-        } else {
-          if (viewSwitcher) viewSwitcher.style.display = 'flex';
-          if (sortSelect) sortSelect.style.display = 'block';
-        }
-
-        this.refreshUI();
+        const filterKey = e.currentTarget.getAttribute('data-filter') || 'all';
+        activatePersonalFilter(filterKey);
       });
+    });
+
+    btnBrowseAnimes?.addEventListener('click', () => {
+      if (this.currentFilter === 'recent_releases') {
+        activatePersonalFilter(this.lastPersonalFilter || 'all');
+        return;
+      }
+
+      this.lastPersonalFilter = this.currentFilter !== 'recent_releases' ? this.currentFilter : 'all';
+      this.currentFilter = 'recent_releases';
+      tabs.forEach(t => t.classList.remove('active'));
+      btnBrowseAnimes.classList.add('active');
+      syncControlsVisibility(true);
+      this.refreshUI();
     });
   }
 

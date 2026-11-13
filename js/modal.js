@@ -248,6 +248,7 @@ export const Modal = {
 
   closeAll() {
     document.querySelectorAll('.modal-backdrop').forEach(b => b.classList.remove('open'));
+    document.body.style.overflow = '';
     this.activeAnimeId = null;
     this.selectedGridEp = null;
   },
@@ -271,6 +272,7 @@ export const Modal = {
 
     this.pendingAnimeData = null;
     modal?.classList.add('open');
+    if (modal) document.body.style.overflow = 'hidden';
     searchInput?.focus();
   },
 
@@ -461,6 +463,7 @@ export const Modal = {
     this.switchDetailTab('episodes');
 
     modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
   },
 
   switchDetailTab(tabKey) {
