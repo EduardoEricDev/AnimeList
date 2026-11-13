@@ -9,6 +9,7 @@ const EP_CHUNK_SIZE = 100;
 
 export const Modal = {
   activeAnimeId: null,
+  draftAnime: null,        // Holds unsaved anime when previewing/categorizing before adding
   activeTab: 'episodes',
   currentEditingAnime: null,
   searchDebounceTimer: null,
@@ -94,26 +95,25 @@ export const Modal = {
     const detailStatusSelect = document.getElementById('detailStatusSelect');
     if (detailStatusSelect) {
       detailStatusSelect.addEventListener('change', (e) => {
-        if (!this.activeAnimeId) return;
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) {
-          anime.status = e.target.value;
-          Storage.save(anime);
-          this.triggerDataChange();
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        const newStatus = e.target.value;
+        anime.status = newStatus;
+        if (newStatus === 'completed' && anime.totalEpisodes > 0 && (anime.currentEpisode || 0) < anime.totalEpisodes) {
+          Storage.applyMarkAllEpisodes(anime, true);
         }
+        const updated = this.commitWorkingAnime(anime);
+        if (updated) this.renderEpisodesTab(updated);
       });
     }
 
     const detailScoreSelect = document.getElementById('detailScoreSelect');
     if (detailScoreSelect) {
       detailScoreSelect.addEventListener('change', (e) => {
-        if (!this.activeAnimeId) return;
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) {
-          anime.score = parseInt(e.target.value, 10) || 0;
-          Storage.save(anime);
-          this.triggerDataChange();
-        }
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        anime.score = parseInt(e.target.value, 10) || 0;
+        this.commitWorkingAnime(anime);
       });
     }
 
@@ -121,10 +121,10 @@ export const Modal = {
     const generalNotesInput = document.getElementById('detailGeneralNotes');
     if (generalNotesInput) {
       generalNotesInput.addEventListener('input', (e) => {
-        if (!this.activeAnimeId) return;
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) {
-          anime.generalNotes = e.target.value;
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        anime.generalNotes = e.target.value;
+        if (!this.draftAnime) {
           Storage.save(anime);
         }
       });
@@ -134,6 +134,21 @@ export const Modal = {
     const btnAddLink = document.getElementById('btnAddCustomLink');
     if (btnAddLink) {
       btnAddLink.addEventListener('click', () => this.handleAddCustomLink());
+    }
+
+    // Confirm Add Anime (from draft preview mode)
+    const btnConfirmAddAnime = document.getElementById('btnConfirmAddAnime');
+    if (btnConfirmAddAnime) {
+      btnConfirmAddAnime.addEventListener('click', () => {
+        if (!this.draftAnime) return;
+        const toSave = {
+          ...this.draftAnime,
+          id: this.draftAnime.id || 'anime-' + Date.now()
+        };
+        const saved = Storage.save(toSave);
+        this.closeAll();
+        this.triggerDataChange(`"${saved.title}" adicionado à sua lista!`);
+      });
     }
 
     // Delete Anime button
@@ -157,33 +172,28 @@ export const Modal = {
     btnEpViewGrid?.addEventListener('click', () => {
       this.episodeViewMode = 'grid';
       this.selectedGridEp = null;
-      if (this.activeAnimeId) {
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) this.renderEpisodesTab(anime);
-      }
+      const anime = this.getWorkingAnime();
+      if (anime) this.renderEpisodesTab(anime);
     });
 
     btnEpViewList?.addEventListener('click', () => {
       this.episodeViewMode = 'list';
-      if (this.activeAnimeId) {
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) this.renderEpisodesTab(anime);
-      }
+      const anime = this.getWorkingAnime();
+      if (anime) this.renderEpisodesTab(anime);
     });
 
     // Episode Batch Buttons (+1, -1, Marcar Todos, Limpar, + Extra)
     const btnEpIncrement = document.getElementById('btnEpIncrement');
     if (btnEpIncrement) {
       btnEpIncrement.addEventListener('click', () => {
-        if (!this.activeAnimeId) return;
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) {
-          const next = (anime.currentEpisode || 0) + 1;
-          const updated = Storage.updateCurrentEpisode(this.activeAnimeId, next);
-          if (updated) {
-            this.renderEpisodesTab(updated);
-            this.triggerDataChange(`Episódio ${next} assistido!`);
-          }
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        const next = (anime.currentEpisode || 0) + 1;
+        Storage.applyCurrentEpisode(anime, next);
+        const updated = this.commitWorkingAnime(anime, `Episódio ${next} assistido!`);
+        if (updated) {
+          this.syncDetailStatusSelect(updated);
+          this.renderEpisodesTab(updated);
         }
       });
     }
@@ -191,15 +201,14 @@ export const Modal = {
     const btnEpDecrement = document.getElementById('btnEpDecrement');
     if (btnEpDecrement) {
       btnEpDecrement.addEventListener('click', () => {
-        if (!this.activeAnimeId) return;
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) {
-          const prev = Math.max(0, (anime.currentEpisode || 0) - 1);
-          const updated = Storage.updateCurrentEpisode(this.activeAnimeId, prev);
-          if (updated) {
-            this.renderEpisodesTab(updated);
-            this.triggerDataChange();
-          }
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        const prev = Math.max(0, (anime.currentEpisode || 0) - 1);
+        Storage.applyCurrentEpisode(anime, prev);
+        const updated = this.commitWorkingAnime(anime);
+        if (updated) {
+          this.syncDetailStatusSelect(updated);
+          this.renderEpisodesTab(updated);
         }
       });
     }
@@ -207,11 +216,13 @@ export const Modal = {
     const btnMarkAllEpisodes = document.getElementById('btnMarkAllEpisodes');
     if (btnMarkAllEpisodes) {
       btnMarkAllEpisodes.addEventListener('click', () => {
-        if (!this.activeAnimeId) return;
-        const updated = Storage.markAllEpisodes(this.activeAnimeId, true);
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        Storage.applyMarkAllEpisodes(anime, true);
+        const updated = this.commitWorkingAnime(anime, 'Todos os episódios marcados como assistidos!');
         if (updated) {
+          this.syncDetailStatusSelect(updated);
           this.renderEpisodesTab(updated);
-          this.triggerDataChange('Todos os episódios marcados como assistidos!');
         }
       });
     }
@@ -219,11 +230,13 @@ export const Modal = {
     const btnUnmarkAllEpisodes = document.getElementById('btnUnmarkAllEpisodes');
     if (btnUnmarkAllEpisodes) {
       btnUnmarkAllEpisodes.addEventListener('click', () => {
-        if (!this.activeAnimeId) return;
-        const updated = Storage.markAllEpisodes(this.activeAnimeId, false);
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        Storage.applyMarkAllEpisodes(anime, false);
+        const updated = this.commitWorkingAnime(anime, 'Progresso resetado!');
         if (updated) {
+          this.syncDetailStatusSelect(updated);
           this.renderEpisodesTab(updated);
-          this.triggerDataChange('Progresso resetado!');
         }
       });
     }
@@ -231,24 +244,55 @@ export const Modal = {
     const btnAddExtraEpisode = document.getElementById('btnAddExtraEpisode');
     if (btnAddExtraEpisode) {
       btnAddExtraEpisode.addEventListener('click', () => {
-        if (!this.activeAnimeId) return;
-        const anime = Storage.getById(this.activeAnimeId);
-        if (anime) {
-          anime.totalEpisodes = (anime.totalEpisodes || 0) + 1;
-          Storage.save(anime);
-          this.renderEpisodesTab(anime);
-          this.triggerDataChange('Novo episódio adicionado à contagem!');
-        }
+        const anime = this.getWorkingAnime();
+        if (!anime) return;
+        anime.totalEpisodes = (anime.totalEpisodes || 0) + 1;
+        const updated = this.commitWorkingAnime(anime, 'Novo episódio adicionado à contagem!');
+        if (updated) this.renderEpisodesTab(updated);
       });
     }
 
     const btnRefreshAnimeApi = document.getElementById('btnRefreshAnimeApi');
     if (btnRefreshAnimeApi) {
       btnRefreshAnimeApi.addEventListener('click', () => {
-        if (!this.activeAnimeId) return;
+        if (!this.activeAnimeId && !this.draftAnime) return;
         this.refreshAnimeFromApi(this.activeAnimeId, true);
       });
     }
+  },
+
+  getWorkingAnime() {
+    if (this.draftAnime) return this.draftAnime;
+    if (this.activeAnimeId) return Storage.getById(this.activeAnimeId);
+    return null;
+  },
+
+  commitWorkingAnime(anime, toastMsg) {
+    if (!anime) return null;
+    if (this.draftAnime) {
+      this.draftAnime = anime;
+      return anime;
+    }
+    const saved = Storage.save(anime);
+    this.triggerDataChange(toastMsg);
+    return saved;
+  },
+
+  syncDetailStatusSelect(anime) {
+    const statusSelect = document.getElementById('detailStatusSelect');
+    if (statusSelect && anime?.status) {
+      statusSelect.value = anime.status;
+    }
+  },
+
+  syncDetailFooterMode(isAddPreview) {
+    const btnDelete = document.getElementById('btnDeleteAnime');
+    const btnClose = document.getElementById('btnDetailClose');
+    const btnConfirmAdd = document.getElementById('btnConfirmAddAnime');
+
+    if (btnDelete) btnDelete.style.display = isAddPreview ? 'none' : 'inline-flex';
+    if (btnConfirmAdd) btnConfirmAdd.style.display = isAddPreview ? 'inline-flex' : 'none';
+    if (btnClose) btnClose.textContent = isAddPreview ? 'Cancelar' : 'Fechar';
   },
 
   triggerDataChange(toastMsg) {
@@ -261,6 +305,7 @@ export const Modal = {
     document.querySelectorAll('.modal-backdrop').forEach(b => b.classList.remove('open'));
     document.body.style.overflow = '';
     this.activeAnimeId = null;
+    this.draftAnime = null;
     this.selectedGridEp = null;
     this.activeEpChunkStart = null;
   },
@@ -430,11 +475,13 @@ export const Modal = {
     if (!anime) return;
 
     this.activeAnimeId = id;
+    this.draftAnime = null;
     this.selectedGridEp = null;
     this.activeEpChunkStart = null;
     const modal = document.getElementById('modalAnimeDetail');
     if (!modal) return;
 
+    this.syncDetailFooterMode(false);
     this.populateDetailFields(anime);
 
     // Render Sub-tabs
@@ -456,6 +503,49 @@ export const Modal = {
       anime.genres.length === 0;
     if (hasMissingData && anime.studio !== 'Manual') {
       this.refreshAnimeFromApi(id, false);
+    }
+  },
+
+  /**
+   * Opens the Notion Detail Drawer in add-preview mode so users can categorize status/score/episodes before saving
+   */
+  openAddPreviewModal(animeData) {
+    if (!animeData) return;
+
+    this.activeAnimeId = null;
+    this.selectedGridEp = null;
+    this.activeEpChunkStart = null;
+    this.draftAnime = {
+      ...animeData,
+      status: animeData.status || 'plan_to_watch',
+      score: animeData.score || 0,
+      currentEpisode: animeData.currentEpisode || 0,
+      favorite: Boolean(animeData.favorite),
+      genres: Array.isArray(animeData.genres) ? [...animeData.genres] : [],
+      links: Array.isArray(animeData.links) ? animeData.links.map(l => ({ ...l })) : [],
+      episodesData: animeData.episodesData ? { ...animeData.episodesData } : {}
+    };
+
+    const modal = document.getElementById('modalAnimeDetail');
+    if (!modal) return;
+
+    this.syncDetailFooterMode(true);
+    this.populateDetailFields(this.draftAnime);
+    this.renderEpisodesTab(this.draftAnime);
+    this.renderLinksTab(this.draftAnime);
+    this.renderNotesTab(this.draftAnime);
+    this.switchDetailTab('episodes');
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    const hasMissingData =
+      !this.draftAnime.totalEpisodes ||
+      this.draftAnime.studio === 'Desconhecido' ||
+      this.draftAnime.studio === 'Kitsu Anime' ||
+      this.draftAnime.genres.length === 0;
+    if (hasMissingData) {
+      this.refreshAnimeFromApi(null, false);
     }
   },
 
@@ -491,7 +581,8 @@ export const Modal = {
   },
 
   async refreshAnimeFromApi(animeId, showFeedback = false) {
-    const anime = Storage.getById(animeId);
+    const isDraft = !animeId && Boolean(this.draftAnime);
+    const anime = isDraft ? this.draftAnime : Storage.getById(animeId);
     if (!anime) return;
 
     const btn = document.getElementById('btnRefreshAnimeApi');
@@ -510,13 +601,27 @@ export const Modal = {
         enriched.synopsis !== anime.synopsis;
 
       if (changed) {
-        const saved = Storage.save(enriched);
-        if (this.activeAnimeId === animeId) {
-          this.populateDetailFields(saved);
-          this.renderEpisodesTab(saved);
-          this.renderNotesTab(saved);
+        if (isDraft) {
+          if (!this.draftAnime || this.draftAnime.id !== anime.id) return;
+          this.draftAnime = enriched;
+          if (this.draftAnime.status === 'completed' && this.draftAnime.totalEpisodes > 0) {
+            Storage.applyMarkAllEpisodes(this.draftAnime, true);
+          }
+          this.populateDetailFields(this.draftAnime);
+          this.renderEpisodesTab(this.draftAnime);
+          this.renderNotesTab(this.draftAnime);
+          if (showFeedback) {
+            this.triggerDataChange('Dados sincronizados com a API!');
+          }
+        } else {
+          const saved = Storage.save(enriched);
+          if (this.activeAnimeId === animeId) {
+            this.populateDetailFields(saved);
+            this.renderEpisodesTab(saved);
+            this.renderNotesTab(saved);
+          }
+          this.triggerDataChange(showFeedback ? 'Dados sincronizados com a API!' : undefined);
         }
-        this.triggerDataChange(showFeedback ? 'Dados sincronizados com a API!' : undefined);
       } else if (showFeedback) {
         this.triggerDataChange('Os dados já estão atualizados!');
       }
@@ -617,10 +722,8 @@ export const Modal = {
     wrapper.querySelectorAll('[data-ep-range-start]').forEach(btn => {
       btn.addEventListener('click', () => {
         this.activeEpChunkStart = parseInt(btn.getAttribute('data-ep-range-start') || '1', 10);
-        if (this.activeAnimeId) {
-          const currentAnime = Storage.getById(this.activeAnimeId);
-          if (currentAnime) this.renderEpisodesTab(currentAnime);
-        }
+        const currentAnime = this.getWorkingAnime();
+        if (currentAnime) this.renderEpisodesTab(currentAnime);
       });
     });
   },
@@ -701,12 +804,15 @@ export const Modal = {
       const ep = parseInt(btn.getAttribute('data-ep') || '1', 10);
 
       // Single click: toggle watched
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
+        const current = this.getWorkingAnime();
+        if (!current) return;
         const isWatched = btn.classList.contains('watched');
-        const updated = Storage.setEpisodeWatched(this.activeAnimeId, ep, !isWatched);
+        Storage.applyEpisodeWatched(current, ep, !isWatched);
+        const updated = this.commitWorkingAnime(current);
         if (updated) {
+          this.syncDetailStatusSelect(updated);
           this.renderEpisodesTab(updated);
-          this.triggerDataChange();
         }
       });
 
@@ -714,14 +820,14 @@ export const Modal = {
       btn.addEventListener('dblclick', (e) => {
         e.preventDefault();
         this.selectedGridEp = ep;
-        const currentAnime = Storage.getById(this.activeAnimeId);
+        const currentAnime = this.getWorkingAnime();
         if (currentAnime) this.renderEpisodesTab(currentAnime);
       });
 
       btn.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         this.selectedGridEp = ep;
-        const currentAnime = Storage.getById(this.activeAnimeId);
+        const currentAnime = this.getWorkingAnime();
         if (currentAnime) this.renderEpisodesTab(currentAnime);
       });
     });
@@ -729,17 +835,20 @@ export const Modal = {
     // Mark up to this episode
     wrapper.querySelector('[data-action="mark-up-to"]')?.addEventListener('click', (e) => {
       const epNum = parseInt(e.currentTarget.getAttribute('data-ep') || '1', 10);
-      const updated = Storage.markEpisodesUpTo(this.activeAnimeId, epNum);
+      const current = this.getWorkingAnime();
+      if (!current) return;
+      Storage.applyMarkEpisodesUpTo(current, epNum);
+      const updated = this.commitWorkingAnime(current, `Marcados episódios 1 até ${epNum}!`);
       if (updated) {
+        this.syncDetailStatusSelect(updated);
         this.renderEpisodesTab(updated);
-        this.triggerDataChange(`Marcados episódios 1 até ${epNum}!`);
       }
     });
 
     // Close note editor
     wrapper.querySelector('[data-action="close-grid-note"]')?.addEventListener('click', () => {
       this.selectedGridEp = null;
-      const currentAnime = Storage.getById(this.activeAnimeId);
+      const currentAnime = this.getWorkingAnime();
       if (currentAnime) this.renderEpisodesTab(currentAnime);
     });
 
@@ -748,7 +857,16 @@ export const Modal = {
     if (textarea && this.selectedGridEp) {
       textarea.addEventListener('input', (e) => {
         const note = e.target.value;
-        Storage.setEpisodeNote(this.activeAnimeId, this.selectedGridEp, note);
+        if (this.draftAnime) {
+          if (!this.draftAnime.episodesData) this.draftAnime.episodesData = {};
+          if (!this.draftAnime.episodesData[this.selectedGridEp]) {
+            this.draftAnime.episodesData[this.selectedGridEp] = { watched: false, note };
+          } else {
+            this.draftAnime.episodesData[this.selectedGridEp].note = note;
+          }
+        } else if (this.activeAnimeId) {
+          Storage.setEpisodeNote(this.activeAnimeId, this.selectedGridEp, note);
+        }
       });
     }
   },
@@ -811,10 +929,13 @@ export const Modal = {
         e.stopPropagation();
         const epNum = parseInt(e.currentTarget.getAttribute('data-ep') || '1', 10);
         const isChecked = e.currentTarget.classList.contains('checked');
-        const updated = Storage.setEpisodeWatched(this.activeAnimeId, epNum, !isChecked);
+        const current = this.getWorkingAnime();
+        if (!current) return;
+        Storage.applyEpisodeWatched(current, epNum, !isChecked);
+        const updated = this.commitWorkingAnime(current);
         if (updated) {
+          this.syncDetailStatusSelect(updated);
           this.renderEpisodesTab(updated);
-          this.triggerDataChange();
         }
       });
     });
@@ -838,7 +959,16 @@ export const Modal = {
       textarea.addEventListener('input', (e) => {
         const epNum = parseInt(e.currentTarget.getAttribute('data-ep') || '1', 10);
         const note = e.target.value;
-        Storage.setEpisodeNote(this.activeAnimeId, epNum, note);
+        if (this.draftAnime) {
+          if (!this.draftAnime.episodesData) this.draftAnime.episodesData = {};
+          if (!this.draftAnime.episodesData[epNum]) {
+            this.draftAnime.episodesData[epNum] = { watched: false, note };
+          } else {
+            this.draftAnime.episodesData[epNum].note = note;
+          }
+        } else if (this.activeAnimeId) {
+          Storage.setEpisodeNote(this.activeAnimeId, epNum, note);
+        }
       });
     });
   },
@@ -883,10 +1013,15 @@ export const Modal = {
       btn.addEventListener('click', (e) => {
         const linkId = e.currentTarget.getAttribute('data-id');
         if (confirm('Deseja excluir este link?')) {
-          const updated = Storage.removeLink(this.activeAnimeId, linkId);
-          if (updated) {
-            this.renderLinksTab(updated);
-            this.triggerDataChange();
+          if (this.draftAnime) {
+            this.draftAnime.links = (this.draftAnime.links || []).filter(l => l.id !== linkId);
+            this.renderLinksTab(this.draftAnime);
+          } else {
+            const updated = Storage.removeLink(this.activeAnimeId, linkId);
+            if (updated) {
+              this.renderLinksTab(updated);
+              this.triggerDataChange();
+            }
           }
         }
       });
@@ -894,7 +1029,7 @@ export const Modal = {
   },
 
   handleAddCustomLink() {
-    if (!this.activeAnimeId) return;
+    if (!this.activeAnimeId && !this.draftAnime) return;
 
     const titleInput = document.getElementById('inputNewLinkTitle');
     const urlInput = document.getElementById('inputNewLinkUrl');
@@ -918,12 +1053,20 @@ export const Modal = {
       url = 'https://' + url;
     }
 
-    const updated = Storage.addLink(this.activeAnimeId, title, url);
-    if (updated) {
+    if (this.draftAnime) {
+      if (!this.draftAnime.links) this.draftAnime.links = [];
+      this.draftAnime.links.push({ id: 'lnk-' + Date.now(), title, url });
       titleInput.value = '';
       urlInput.value = '';
-      this.renderLinksTab(updated);
-      this.triggerDataChange('Link adicionado!');
+      this.renderLinksTab(this.draftAnime);
+    } else {
+      const updated = Storage.addLink(this.activeAnimeId, title, url);
+      if (updated) {
+        titleInput.value = '';
+        urlInput.value = '';
+        this.renderLinksTab(updated);
+        this.triggerDataChange('Link adicionado!');
+      }
     }
   },
 

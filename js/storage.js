@@ -83,25 +83,20 @@ export const Storage = {
   },
 
   /**
-   * Updates watched episode count
+   * Pure mutator: updates watched episode count and syncs status/episodesData on an anime object
    */
-  updateCurrentEpisode(id, currentEpisode) {
-    const anime = this.getById(id);
-    if (!anime) return null;
-
+  applyCurrentEpisode(anime, currentEpisode) {
     const total = anime.totalEpisodes || 9999;
     const validatedEp = Math.max(0, Math.min(currentEpisode, total));
 
     anime.currentEpisode = validatedEp;
 
-    // Auto update status if watched all
     if (anime.totalEpisodes && validatedEp >= anime.totalEpisodes) {
       anime.status = 'completed';
     } else if (anime.status === 'completed' && validatedEp < (anime.totalEpisodes || 0)) {
       anime.status = 'watching';
     }
 
-    // Ensure episodesData object exists and mark up to current ep as watched
     if (!anime.episodesData) anime.episodesData = {};
     for (let i = 1; i <= validatedEp; i++) {
       if (!anime.episodesData[i]) {
@@ -110,17 +105,23 @@ export const Storage = {
         anime.episodesData[i].watched = true;
       }
     }
+    return anime;
+  },
 
+  /**
+   * Updates watched episode count
+   */
+  updateCurrentEpisode(id, currentEpisode) {
+    const anime = this.getById(id);
+    if (!anime) return null;
+    this.applyCurrentEpisode(anime, currentEpisode);
     return this.save(anime);
   },
 
   /**
-   * Toggles a single episode's watched status
+   * Pure mutator: toggles a single episode's watched status on an anime object
    */
-  setEpisodeWatched(id, epNumber, watched) {
-    const anime = this.getById(id);
-    if (!anime) return null;
-
+  applyEpisodeWatched(anime, epNumber, watched) {
     if (!anime.episodesData) anime.episodesData = {};
     if (!anime.episodesData[epNumber]) {
       anime.episodesData[epNumber] = { watched, note: '' };
@@ -128,7 +129,6 @@ export const Storage = {
       anime.episodesData[epNumber].watched = watched;
     }
 
-    // Recalculate highest watched episode
     let maxWatched = 0;
     Object.keys(anime.episodesData).forEach(epKey => {
       const num = parseInt(epKey, 10);
@@ -137,24 +137,34 @@ export const Storage = {
       }
     });
 
-    if (maxWatched > anime.currentEpisode) {
+    if (maxWatched > (anime.currentEpisode || 0)) {
+      anime.currentEpisode = maxWatched;
+    } else if (!watched && epNumber === anime.currentEpisode) {
       anime.currentEpisode = maxWatched;
     }
 
     if (anime.totalEpisodes && maxWatched >= anime.totalEpisodes) {
       anime.status = 'completed';
+    } else if (anime.status === 'completed' && maxWatched < (anime.totalEpisodes || 0)) {
+      anime.status = 'watching';
     }
+    return anime;
+  },
 
+  /**
+   * Toggles a single episode's watched status
+   */
+  setEpisodeWatched(id, epNumber, watched) {
+    const anime = this.getById(id);
+    if (!anime) return null;
+    this.applyEpisodeWatched(anime, epNumber, watched);
     return this.save(anime);
   },
 
   /**
-   * Marks all episodes as watched or unwatched
+   * Pure mutator: marks all episodes as watched or unwatched on an anime object
    */
-  markAllEpisodes(id, watched) {
-    const anime = this.getById(id);
-    if (!anime) return null;
-
+  applyMarkAllEpisodes(anime, watched) {
     const total = anime.totalEpisodes || Math.max(anime.currentEpisode || 0, 12);
     if (!anime.episodesData) anime.episodesData = {};
 
@@ -172,17 +182,23 @@ export const Storage = {
     } else if (anime.status === 'completed') {
       anime.status = 'watching';
     }
+    return anime;
+  },
 
+  /**
+   * Marks all episodes as watched or unwatched
+   */
+  markAllEpisodes(id, watched) {
+    const anime = this.getById(id);
+    if (!anime) return null;
+    this.applyMarkAllEpisodes(anime, watched);
     return this.save(anime);
   },
 
   /**
-   * Marks all episodes from 1 up to epNumber as watched
+   * Pure mutator: marks all episodes from 1 up to epNumber as watched on an anime object
    */
-  markEpisodesUpTo(id, epNumber) {
-    const anime = this.getById(id);
-    if (!anime) return null;
-
+  applyMarkEpisodesUpTo(anime, epNumber) {
     const total = anime.totalEpisodes || Math.max(anime.currentEpisode || 0, epNumber);
     if (!anime.episodesData) anime.episodesData = {};
 
@@ -201,7 +217,16 @@ export const Storage = {
     } else if (anime.status === 'completed' && epNumber < (anime.totalEpisodes || 0)) {
       anime.status = 'watching';
     }
+    return anime;
+  },
 
+  /**
+   * Marks all episodes from 1 up to epNumber as watched
+   */
+  markEpisodesUpTo(id, epNumber) {
+    const anime = this.getById(id);
+    if (!anime) return null;
+    this.applyMarkEpisodesUpTo(anime, epNumber);
     return this.save(anime);
   },
 

@@ -411,7 +411,7 @@ class App {
         return;
       }
 
-      // 2. Quick add from Recent Releases
+      // 2. Quick add from Recent Releases -> opens Notion Detail Preview to categorize before saving
       const addRecentBtn = target.closest('[data-action="add-recent"]');
       if (addRecentBtn) {
         e.stopPropagation();
@@ -420,21 +420,12 @@ class App {
         const currentList = this.recentAnimesCache[cacheKey] || [];
         const animeData = currentList.find(a => a.id === animeId);
         if (animeData) {
-          addRecentBtn.disabled = true;
-          const needsEnrich = !animeData.totalEpisodes || !animeData.genres?.length || animeData.studio === 'Desconhecido';
-          const resolvedData = needsEnrich ? await Api.enrichAnimeData(animeData) : animeData;
-          Storage.save({
-            ...resolvedData,
-            id: resolvedData.id || 'anime-' + Date.now(),
-            status: 'plan_to_watch'
-          });
-          this.showToast(`"${resolvedData.title}" adicionado à sua lista!`);
-          this.refreshUI();
+          Modal.openAddPreviewModal(animeData);
         }
         return;
       }
 
-      // 3. Click on Recent Anime card to preview/add or view
+      // 3. Click on Recent Anime card to preview/categorize or view if already in list
       const recentCard = target.closest('.recent-anime-card');
       if (recentCard && this.currentFilter === 'recent_releases') {
         const animeId = recentCard.getAttribute('data-id');
@@ -447,15 +438,7 @@ class App {
           const currentList = this.recentAnimesCache[cacheKey] || [];
           const animeData = currentList.find(a => a.id === animeId);
           if (animeData) {
-            Modal.openAddModal();
-            Modal.selectApiSuggestion(animeData);
-            if (!animeData.totalEpisodes || !animeData.genres?.length || animeData.studio === 'Desconhecido') {
-              Api.enrichAnimeData(animeData).then(enriched => {
-                if (Modal.pendingAnimeData?.id === animeData.id) {
-                  Modal.selectApiSuggestion(enriched);
-                }
-              });
-            }
+            Modal.openAddPreviewModal(animeData);
           }
         }
         return;
