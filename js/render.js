@@ -296,7 +296,7 @@ export const Render = {
               <div class="recent-select-wrap">
                 <span class="recent-select-label">Temporada:</span>
                 <select id="recentSeasonSelect" class="select-input">
-                  <option value="all" ${season === 'all' ? 'selected' : ''}>🌟 Todas as Temporadas (~60 animes)</option>
+                  <option value="all" ${season === 'all' ? 'selected' : ''}>🌟 Todas as Temporadas (Ano todo)</option>
                   ${hasPastSeasons ? `
                     <option value="past" ${season === 'past' ? 'selected' : ''}>⏪ Temporadas Passadas deste Ano</option>
                   ` : ''}

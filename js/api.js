@@ -59,28 +59,33 @@ function buildIncludedMap(included) {
   return map;
 }
 
+const ANILIST_MEDIA_FIELDS = `
+  id
+  idMal
+  siteUrl
+  title { romaji english native }
+  episodes
+  status
+  nextAiringEpisode { episode }
+  genres
+  studios(isMain: true) { nodes { name } }
+  season
+  seasonYear
+  startDate { year }
+  averageScore
+  popularity
+  format
+  coverImage { extraLarge large }
+  bannerImage
+  description(asHtml: false)
+  trailer { id site }
+`;
+
 const ANILIST_SEARCH_QUERY = `
   query ($search: String, $perPage: Int) {
     Page(page: 1, perPage: $perPage) {
       media(search: $search, type: ANIME, isAdult: false, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
-        id
-        idMal
-        siteUrl
-        title { romaji english native }
-        episodes
-        status
-        nextAiringEpisode { episode }
-        genres
-        studios(isMain: true) { nodes { name } }
-        season
-        seasonYear
-        startDate { year }
-        averageScore
-        format
-        coverImage { extraLarge large }
-        bannerImage
-        description(asHtml: false)
-        trailer { id site }
+        ${ANILIST_MEDIA_FIELDS}
       }
     }
   }
@@ -335,10 +340,17 @@ export const Api = {
     const [kitsuItems, anilistItems] = await Promise.all([kitsuPromise, anilistPromise]);
 
     if (kitsuItems.length > 0) {
-      return kitsuItems.map(item => {
+      const merged = kitsuItems.map(item => {
         const match = this.findBestMatch(item, anilistItems);
         return match ? this.mergeAnimeMetadata(item, match) : item;
       });
+      // Append unique AniList results not covered by Kitsu's top 6
+      for (const alItem of anilistItems) {
+        if (!this.findBestMatch(alItem, merged)) {
+          merged.push(alItem);
+        }
+      }
+      return merged.slice(0, 8);
     }
 
     if (anilistItems.length > 0) {
@@ -364,13 +376,64 @@ export const Api = {
   },
 
   /**
-   * Fetches seasonal, airing, trending, or current year animes
+   * Executes a GraphQL query against AniList
+   */
+  async queryAniList(query, variables = {}) {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ query, variables })
+    });
+    if (!response.ok) throw new Error(`AniList status ${response.status}`);
+    const json = await response.json();
+    if (json.errors && !json.data) throw new Error(json.errors[0]?.message || 'AniList GraphQL error');
+    return json.data;
+  },
+
+  /**
+   * Fetches seasonal, airing, or trending animes (AniList primary for complete catalog + Kitsu fallback)
    */
   async getSeasonalReleases({ year = new Date().getFullYear(), season = 'all', category = 'current_year', airingFilter = 'all' } = {}) {
     const yearNum = Number(year) || new Date().getFullYear();
 
-    // 1. Airing category
+    // 1. Airing category (up to 100 currently airing animes in one request via AniList)
     if (category === 'airing') {
+      try {
+        const data = await this.queryAniList(`
+          query {
+            p1: Page(page: 1, perPage: 50) {
+              media(status: RELEASING, type: ANIME, isAdult: false, format_not: MUSIC, sort: [POPULARITY_DESC]) {
+                ${ANILIST_MEDIA_FIELDS}
+              }
+            }
+            p2: Page(page: 2, perPage: 50) {
+              media(status: RELEASING, type: ANIME, isAdult: false, format_not: MUSIC, sort: [POPULARITY_DESC]) {
+                ${ANILIST_MEDIA_FIELDS}
+              }
+            }
+          }
+        `);
+        const rawList = [...(data?.p1?.media || []), ...(data?.p2?.media || [])];
+        const seenIds = new Set();
+        let items = [];
+        for (const m of rawList) {
+          if (m && !seenIds.has(m.id)) {
+            seenIds.add(m.id);
+            items.push(this.formatAniListData(m));
+          }
+        }
+        if (airingFilter === 'year') {
+          items = items.filter(item => item.year === yearNum);
+        }
+        if (items.length > 0) return items;
+      } catch (err) {
+        console.warn('AniList airing falhou, tentando fallback Kitsu:', err);
+      }
+
+      // Fallback: Kitsu airing
       try {
         const url = `${KITSU_BASE_URL}/anime?filter[status]=current&sort=-userCount&include=${KITSU_INCLUDES}&page[limit]=20`;
         const res = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
@@ -378,13 +441,8 @@ export const Api = {
         const json = await res.json();
         const includedMap = buildIncludedMap(json.included);
         let items = (json.data || []).map(item => this.formatKitsuData(item, null, null, includedMap));
-
         if (airingFilter === 'year') {
-          items = items.filter(item => {
-            if (item.year && item.year === yearNum) return true;
-            if (item.startDate && item.startDate.startsWith(String(yearNum))) return true;
-            return false;
-          });
+          items = items.filter(item => item.year === yearNum);
         }
         return items;
       } catch (err) {
@@ -393,8 +451,24 @@ export const Api = {
       }
     }
 
-    // 2. Trending category
+    // 2. Trending category (top 50 trending via AniList, Kitsu fallback)
     if (category === 'trending') {
+      try {
+        const data = await this.queryAniList(`
+          query {
+            Page(page: 1, perPage: 50) {
+              media(type: ANIME, isAdult: false, format_not: MUSIC, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+                ${ANILIST_MEDIA_FIELDS}
+              }
+            }
+          }
+        `);
+        const items = (data?.Page?.media || []).map(m => this.formatAniListData(m));
+        if (items.length > 0) return items;
+      } catch (err) {
+        console.warn('AniList trending falhou, tentando fallback Kitsu:', err);
+      }
+
       try {
         const url = `${KITSU_BASE_URL}/trending/anime?limit=20&include=${KITSU_INCLUDES}`;
         const res = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
@@ -408,55 +482,59 @@ export const Api = {
       }
     }
 
-    // 3. Current Year or Seasonal Category
-    try {
-      const seasonInfo = this.getSeasonInfo(yearNum);
+    // 3. Seasonal / Year Category (AniList primary + Kitsu fallback)
+    const seasonInfo = this.getSeasonInfo(yearNum);
+    const seasonsToFetch = (season && season !== 'all' && season !== 'past')
+      ? [season]
+      : (season === 'past'
+          ? (seasonInfo.pastSeasons.length > 0 ? seasonInfo.pastSeasons : ['winter'])
+          : ['winter', 'spring', 'summer', 'fall']);
 
-      // A. Specific Season (winter, spring, summer, fall)
-      if (season && season !== 'all' && season !== 'past') {
-        const url = `${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${season}&sort=-userCount&include=${KITSU_INCLUDES}&page[limit]=20`;
+    try {
+      const perPage = seasonsToFetch.length === 1 ? 50 : 25;
+      const pageBlocks = seasonsToFetch.map(s => `
+        ${s}: Page(page: 1, perPage: ${perPage}) {
+          media(season: ${s.toUpperCase()}, seasonYear: ${yearNum}, type: ANIME, isAdult: false, format_not: MUSIC, sort: [POPULARITY_DESC]) {
+            ${ANILIST_MEDIA_FIELDS}
+          }
+        }
+      `).join('\n');
+
+      const data = await this.queryAniList(`query { ${pageBlocks} }`);
+      const seenIds = new Set();
+      const uniqueItems = [];
+
+      for (const s of seasonsToFetch) {
+        const list = data?.[s]?.media || [];
+        for (const m of list) {
+          if (m && !seenIds.has(m.id)) {
+            seenIds.add(m.id);
+            uniqueItems.push(this.formatAniListData(m));
+          }
+        }
+      }
+
+      if (seasonsToFetch.length > 1) {
+        uniqueItems.sort((a, b) => (b.userCount || 0) - (a.userCount || 0));
+      }
+      if (uniqueItems.length > 0) return uniqueItems;
+    } catch (err) {
+      console.warn('AniList seasonal falhou, tentando fallback Kitsu:', err);
+    }
+
+    // Fallback: Kitsu seasonal
+    try {
+      if (seasonsToFetch.length === 1) {
+        const s = seasonsToFetch[0];
+        const url = `${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${s}&sort=-userCount&include=${KITSU_INCLUDES}&page[limit]=20`;
         const res = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const json = await res.json();
         const includedMap = buildIncludedMap(json.included);
-        return (json.data || []).map(item => this.formatKitsuData(item, season, yearNum, includedMap));
+        return (json.data || []).map(item => this.formatKitsuData(item, s, yearNum, includedMap));
       }
 
-      // B. Past Seasons of this year
-      if (season === 'past') {
-        const pastList = seasonInfo.pastSeasons.length > 0
-          ? seasonInfo.pastSeasons
-          : ['winter'];
-
-        const requests = pastList.map(s =>
-          fetch(`${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${s}&sort=-userCount&include=${KITSU_INCLUDES}&page[limit]=15`, {
-            headers: { 'Accept': 'application/vnd.api+json' }
-          })
-            .then(r => r.ok ? r.json() : { data: [] })
-            .then(j => ({ season: s, data: j.data || [], includedMap: buildIncludedMap(j.included) }))
-            .catch(() => ({ season: s, data: [], includedMap: new Map() }))
-        );
-
-        const results = await Promise.all(requests);
-        const seenIds = new Set();
-        const uniqueItems = [];
-
-        for (const resItem of results) {
-          for (const item of resItem.data) {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              uniqueItems.push(this.formatKitsuData(item, resItem.season, yearNum, resItem.includedMap));
-            }
-          }
-        }
-
-        uniqueItems.sort((a, b) => (b.userCount || 0) - (a.userCount || 0));
-        return uniqueItems;
-      }
-
-      // C. All Seasons of the year (winter, spring, summer, fall)
-      const seasons = ['winter', 'spring', 'summer', 'fall'];
-      const requests = seasons.map(s =>
+      const requests = seasonsToFetch.map(s =>
         fetch(`${KITSU_BASE_URL}/anime?filter[seasonYear]=${yearNum}&filter[season]=${s}&sort=-userCount&include=${KITSU_INCLUDES}&page[limit]=15`, {
           headers: { 'Accept': 'application/vnd.api+json' }
         })
@@ -653,7 +731,8 @@ export const Api = {
       synopsis: stripHtml(media.description),
       generalNotes: '',
       links: links,
-      episodesData: {}
+      episodesData: {},
+      userCount: media.popularity || 0
     };
   },
 
